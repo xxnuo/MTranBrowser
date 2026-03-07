@@ -529,6 +529,16 @@ export default function Main() {
 									options={serviceOptionList}
 								/>
 							</FieldRow>
+							<FieldRow label={t("富文本翻译")}>
+								<Switch
+									checked={!!config.richTextTranslate}
+									onCheckedChange={(value) =>
+										updateConfig((draft) => {
+											draft.richTextTranslate = value;
+										})
+									}
+								/>
+							</FieldRow>
 							<FieldRow label={t("目标语言")}>
 								<Select
 									value={config.to}

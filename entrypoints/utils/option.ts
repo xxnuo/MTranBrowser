@@ -748,6 +748,7 @@ export const defaultOption = {
 {{origin}}`,
 	count: 0,
 	useCache: true,
+	richTextTranslate: true,
 	floatingBallHotkey: "Alt+A",
 	inputBoxTranslationTrigger: "disabled", // 默认关闭输入框翻译
 	inputBoxTranslationTarget: "en", // 默认翻译成英文

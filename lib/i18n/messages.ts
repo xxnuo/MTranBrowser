@@ -66,6 +66,7 @@ export const localeMessages: Record<UiLanguage, Record<string, string>> = {
 		翻译模式: "Translation Mode",
 		译文样式: "Translation Style",
 		翻译服务: "Translation Service",
+		富文本翻译: "Rich Text Translation",
 		目标语言: "Target Language",
 		鼠标悬浮快捷键: "Hover Shortcut",
 		点击设置自定义快捷键: "Click to set a custom shortcut",

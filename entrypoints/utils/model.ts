@@ -36,6 +36,7 @@ export class Config {
 	theme: string; // 主题模式：'auto' | 'light' | 'dark'
 	uiLanguage: string;
 	useCache: boolean; // 是否使用缓存
+	richTextTranslate: boolean;
 	disableFloatingBall: boolean; // 是否禁用悬浮球
 	floatingBallPosition: "left" | "right"; // 悬浮球位置
 	floatingBallHotkey: string; // 悬浮球快捷键
@@ -86,6 +87,7 @@ export class Config {
 		this.theme = "auto"; // 默认跟随系统
 		this.uiLanguage = "auto";
 		this.useCache = true; // 默认开启缓存
+		this.richTextTranslate = true;
 		this.disableFloatingBall = false; // 默认启用悬浮球
 		this.floatingBallPosition = "right"; // 默认在右侧
 		this.floatingBallHotkey = "Alt+A";

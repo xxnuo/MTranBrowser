@@ -8,4 +8,3 @@ TODO: Active development 仍在积极开发中
 
 [Bistutu/FluentRead](https://github.com/Bistutu/FluentRead)
 
-[fishjar/kiss-translator](https://github.com/fishjar/kiss-translator)

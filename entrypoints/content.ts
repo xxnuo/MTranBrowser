@@ -36,7 +36,7 @@ export default defineContentScript({
 		setupFloatingBallHotkey();
 		// 当悬浮球关闭时，仍然允许使用快捷键进行全文翻译的独立开关
 		let isFullPageTranslating = false;
-		document.addEventListener("fluentread-toggle-translation", () => {
+		document.addEventListener("mtranbrowser-toggle-translation", () => {
 			// 仅在悬浮球被禁用（未挂载）时由内容脚本接管快捷键
 			if (config.disableFloatingBall === true) {
 				isFullPageTranslating = !isFullPageTranslating;
@@ -599,7 +599,9 @@ function setupFloatingBallHotkey() {
 			event.stopPropagation();
 
 			// 通过自定义事件来触发翻译
-			document.dispatchEvent(new CustomEvent("fluentread-toggle-translation"));
+			document.dispatchEvent(
+				new CustomEvent("mtranbrowser-toggle-translation"),
+			);
 
 			if (isDev) {
 				const activeHotkey =

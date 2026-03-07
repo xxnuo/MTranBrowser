@@ -26,10 +26,10 @@ function applyTranslationState(next: boolean) {
 	}
 	isTranslated = next;
 	if (next) {
-		document.dispatchEvent(new CustomEvent("fluentread-translation-started"));
+		document.dispatchEvent(new CustomEvent("mtranbrowser-translation-started"));
 		autoTranslateEnglishPage();
 	} else {
-		document.dispatchEvent(new CustomEvent("fluentread-translation-ended"));
+		document.dispatchEvent(new CustomEvent("mtranbrowser-translation-ended"));
 		restoreOriginalContent();
 	}
 	renderFloatingBall();
@@ -76,7 +76,7 @@ export function mountFloatingBall() {
 	root = createRoot(container);
 	renderFloatingBall();
 	document.addEventListener(
-		"fluentread-toggle-translation",
+		"mtranbrowser-toggle-translation",
 		toggleFloatingBallTranslation,
 	);
 }
@@ -93,7 +93,7 @@ export function unmountFloatingBall() {
 		return;
 	}
 	document.removeEventListener(
-		"fluentread-toggle-translation",
+		"mtranbrowser-toggle-translation",
 		toggleFloatingBallTranslation,
 	);
 	root.unmount();

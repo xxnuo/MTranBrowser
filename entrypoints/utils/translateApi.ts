@@ -8,10 +8,7 @@ import browser from "webextension-polyfill";
 import { cache } from "./cache";
 import { detectlang } from "./common";
 import { config } from "./config";
-import {
-	clearTranslationQueue,
-	enqueueTranslation,
-} from "./translateQueue";
+import { clearTranslationQueue, enqueueTranslation } from "./translateQueue";
 
 // 调试相关
 const isDev = process.env.NODE_ENV === "development";
@@ -116,7 +113,6 @@ export function cancelAllTranslations() {
 	}
 	clearTranslationQueue();
 }
-
 
 /**
  * 翻译参数接口

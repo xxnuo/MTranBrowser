@@ -40,7 +40,13 @@ function extractTranslatedText(payload: unknown): string | null {
 		}
 	}
 
-	for (const key of ["translation", "result", "data", "translations", "texts"]) {
+	for (const key of [
+		"translation",
+		"result",
+		"data",
+		"translations",
+		"texts",
+	]) {
 		const value = result[key];
 		const text = extractTranslatedText(value);
 		if (text) {

@@ -325,7 +325,7 @@ export default function Main() {
 	const saveRuleUrl = async (nextUrl: string, successMessage?: string) => {
 		try {
 			const response = (await browser.runtime.sendMessage({
-				type: "fluentread:update-rule-source",
+				type: "mtranbrowser:update-rule-source",
 				url: nextUrl,
 			})) as any;
 			if (!response?.success) {

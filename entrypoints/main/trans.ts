@@ -1,5 +1,10 @@
 import { storage } from "@wxt-dev/storage";
-import { type ActiveFullPageRuleContext, collectRuleMatchedNodes, createRuleNodePayload, type RuleNodePayload } from "@/entrypoints/main/fullPageRule";
+import {
+	type ActiveFullPageRuleContext,
+	collectRuleMatchedNodes,
+	createRuleNodePayload,
+	type RuleNodePayload,
+} from "@/entrypoints/main/fullPageRule";
 import { getMainDomain, replaceCompatFn } from "@/entrypoints/main/compat";
 import {
 	beautyHTML,
@@ -46,7 +51,7 @@ function getActiveRule() {
 async function requestFullPageRuleContext() {
 	try {
 		const response = await browser.runtime.sendMessage({
-			type: "fluentread:get-fullpage-rule",
+			type: "mtranbrowser:get-fullpage-rule",
 			url: location.href,
 			ruleUrl: config.fullPageRuleUrl,
 		});
@@ -63,18 +68,24 @@ async function requestFullPageRuleContext() {
 	return null;
 }
 
-function collectNodesForRoot(rootNode: ParentNode, rule: NormalizedSiteRule | null) {
+function collectNodesForRoot(
+	rootNode: ParentNode,
+	rule: NormalizedSiteRule | null,
+) {
 	if (!rule) {
 		return grabAllNode(rootNode as Node);
 	}
 	return collectRuleMatchedNodes(rootNode, rule);
 }
 
-function logActiveRule(ruleContext: ActiveFullPageRuleContext, nodeCount: number) {
+function logActiveRule(
+	ruleContext: ActiveFullPageRuleContext,
+	nodeCount: number,
+) {
 	if (!ruleContext.rule) {
 		return;
 	}
-	console.log("[FluentRead] 命中全文规则", {
+	console.log("[MTranBrowser] 命中全文规则", {
 		url: location.href,
 		sourceUrl: ruleContext.sourceUrl,
 		fetchedAt: ruleContext.fetchedAt,
@@ -100,11 +111,14 @@ function resolveInitialTargets(ruleContext: ActiveFullPageRuleContext | null) {
 					ruleContext,
 				};
 			}
-			console.warn("[FluentRead] 命中全文规则，但未选中任何节点，已回退通用扫描", {
-				url: location.href,
-				pattern: rule.pattern,
-				sourceUrl: ruleContext?.sourceUrl,
-			});
+			console.warn(
+				"[MTranBrowser] 命中全文规则，但未选中任何节点，已回退通用扫描",
+				{
+					url: location.href,
+					pattern: rule.pattern,
+					sourceUrl: ruleContext?.sourceUrl,
+				},
+			);
 		} catch (error) {
 			console.error("规则选点失败，回退通用扫描:", error);
 		}
@@ -167,7 +181,9 @@ export function restoreOriginalContent() {
 	activeFullPageRuleContext = null;
 	htmlSet.clear();
 	nodeIdCounter = 0;
-	for (const element of document.querySelectorAll("style[data-fr-temp-style]")) {
+	for (const element of document.querySelectorAll(
+		"style[data-fr-temp-style]",
+	)) {
 		element.remove();
 	}
 }
@@ -363,7 +379,11 @@ function bilingualTranslate(
 		.catch((error: Error) => {
 			spinner.remove();
 			clearPendingHtml(nodeOuterHTML);
-			insertFailedTip(node as HTMLElement, error.toString() || "翻译失败", spinner);
+			insertFailedTip(
+				node as HTMLElement,
+				error.toString() || "翻译失败",
+				spinner,
+			);
 		});
 }
 
@@ -417,7 +437,11 @@ export function singleTranslate(
 		.catch((error: Error) => {
 			spinner.remove();
 			clearPendingHtml(oldOuterHtml);
-			insertFailedTip(node as HTMLElement, error.toString() || "翻译失败", spinner);
+			insertFailedTip(
+				node as HTMLElement,
+				error.toString() || "翻译失败",
+				spinner,
+			);
 		});
 }
 

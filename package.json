@@ -11,6 +11,8 @@
 		"build:firefox": "wxt build -b firefox",
 		"zip": "wxt zip",
 		"zip:firefox": "wxt zip -b firefox",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
 		"compile": "tsc --noEmit",
 		"postinstall": "wxt prepare",
 		"docs:dev": "vitepress dev docs",
@@ -75,6 +77,7 @@
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "2.2.3",
 		"@types/chrome": "^0.1.37",
 		"@types/crypto-js": "^4.2.2",
 		"@types/node": "^25.3.5",

@@ -1,5 +1,8 @@
 import { LLMStandardHTML, grabAllNode } from "@/entrypoints/main/dom";
-import type { FullPageRuleMatchResponse, NormalizedSiteRule } from "@/entrypoints/utils/fullPageRule";
+import type {
+	FullPageRuleMatchResponse,
+	NormalizedSiteRule,
+} from "@/entrypoints/utils/fullPageRule";
 
 const PLACEHOLDER_ATTR = "data-fr-keep-id";
 
@@ -69,7 +72,10 @@ function collectRuleRoots(rootNode: ParentNode, rule: NormalizedSiteRule) {
 			scopes.add(rootNode);
 		}
 	}
-	for (const matchedRoot of querySelectorAllSafe(rootNode, rule.rootsSelector)) {
+	for (const matchedRoot of querySelectorAllSafe(
+		rootNode,
+		rule.rootsSelector,
+	)) {
 		scopes.add(matchedRoot);
 	}
 	return Array.from(scopes);

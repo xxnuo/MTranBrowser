@@ -110,9 +110,10 @@ function normalizeRule(rawRule: unknown): NormalizedSiteRule | null {
 		return null;
 	}
 
-	const rawPattern = typeof (rawRule as any).pattern === "string"
-		? (rawRule as any).pattern.trim()
-		: "";
+	const rawPattern =
+		typeof (rawRule as any).pattern === "string"
+			? (rawRule as any).pattern.trim()
+			: "";
 
 	if (!rawPattern || rawPattern === "*") {
 		return null;
@@ -165,7 +166,7 @@ export function normalizeRemoteRules(input: unknown) {
 export function matchSiteRule(url: string, rules: NormalizedSiteRule[]) {
 	for (const rule of rules) {
 		const patterns = rule.pattern
-			.split(/\n|,/) 
+			.split(/\n|,/)
 			.map((item) => item.trim())
 			.filter(Boolean);
 

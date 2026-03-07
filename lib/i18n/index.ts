@@ -43,7 +43,7 @@ function getSystemLanguage() {
 
 export function resolveUiLanguage(preferred?: string | null): UiLanguage {
 	const candidate = normalizeLanguageTag(
-		preferred && preferred !== "auto" ? preferred : getSystemLanguage()
+		preferred && preferred !== "auto" ? preferred : getSystemLanguage(),
 	);
 	if (!candidate) {
 		return "zh-Hans";
@@ -86,8 +86,11 @@ export function createTranslator(preferred?: string | null): TranslateFn {
 	return (source: string, params?: TranslateParams) => {
 		const translated =
 			language === "zh-Hans"
-				? table[source] ?? source
-				: table[source] ?? englishTable[source] ?? zhHansTable[source] ?? source;
+				? (table[source] ?? source)
+				: (table[source] ??
+					englishTable[source] ??
+					zhHansTable[source] ??
+					source);
 		return interpolate(translated, params);
 	};
 }

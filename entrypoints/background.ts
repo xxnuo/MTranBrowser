@@ -51,7 +51,10 @@ function isRuleCacheExpired(cache: RemoteRuleCache | null) {
 	return Date.now() - cache.fetchedAt >= FULL_PAGE_RULE_CACHE_MAX_AGE;
 }
 
-async function fetchRuleCache(url: string, currentCache: RemoteRuleCache | null) {
+async function fetchRuleCache(
+	url: string,
+	currentCache: RemoteRuleCache | null,
+) {
 	const headers = new Headers();
 	if (currentCache?.etag) {
 		headers.set("If-None-Match", currentCache.etag);
@@ -185,20 +188,20 @@ export default defineBackground({
 		const t = getT();
 		try {
 			browser.contextMenus.create({
-				id: "fluentread-parent",
+				id: "mtranbrowser-parent",
 				title: t("MTranBrowser"),
 				contexts: ["page", "selection"],
 			});
 			browser.contextMenus.create({
 				id: CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE,
 				title: t("全文翻译"),
-				parentId: "fluentread-parent",
+				parentId: "mtranbrowser-parent",
 				contexts: ["page", "selection"],
 			});
 			browser.contextMenus.create({
 				id: CONTEXT_MENU_IDS.RESTORE_ORIGINAL,
 				title: t("撤销翻译"),
-				parentId: "fluentread-parent",
+				parentId: "mtranbrowser-parent",
 				contexts: ["page", "selection"],
 				enabled: false,
 			});
@@ -291,7 +294,7 @@ export default defineBackground({
 						return;
 					}
 
-					if (message?.type === "fluentread:get-fullpage-rule") {
+					if (message?.type === "mtranbrowser:get-fullpage-rule") {
 						const { cache, sourceUrl } = await resolveRuleCacheForPage(
 							message.ruleUrl,
 						);
@@ -306,7 +309,7 @@ export default defineBackground({
 						return;
 					}
 
-					if (message?.type === "fluentread:update-rule-source") {
+					if (message?.type === "mtranbrowser:update-rule-source") {
 						const sourceUrl = normalizeRuleUrl(message.url || "");
 						if (!isValidRuleUrl(sourceUrl)) {
 							throw new Error("规则地址无效");

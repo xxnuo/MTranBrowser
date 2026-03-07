@@ -11,6 +11,9 @@ interface IExtra {
 export const DEFAULT_MIN_PARAGRAPH_CHARS = 5;
 export const MIN_PARAGRAPH_CHARS_MIN = 1;
 export const MIN_PARAGRAPH_CHARS_MAX = 3072;
+export const DEFAULT_IMMERSIVE_SHORT_TEXT_THRESHOLD = 12;
+export const IMMERSIVE_SHORT_TEXT_THRESHOLD_MIN = 1;
+export const IMMERSIVE_SHORT_TEXT_THRESHOLD_MAX = 3072;
 
 export class Config {
 	on: boolean;
@@ -62,6 +65,7 @@ export class Config {
 	inputBoxTranslationTrigger: string;
 	inputBoxTranslationTarget: string;
 	minParagraphChars: number;
+	immersiveShortTextThreshold: number;
 
 	constructor() {
 		this.on = true;
@@ -113,6 +117,8 @@ export class Config {
 		this.inputBoxTranslationTrigger = "disabled";
 		this.inputBoxTranslationTarget = "en";
 		this.minParagraphChars = DEFAULT_MIN_PARAGRAPH_CHARS;
+		this.immersiveShortTextThreshold =
+			DEFAULT_IMMERSIVE_SHORT_TEXT_THRESHOLD;
 	}
 }
 

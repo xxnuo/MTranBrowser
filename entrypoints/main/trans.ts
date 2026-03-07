@@ -14,6 +14,7 @@ import {
 	cancelAllTranslations,
 	translateText,
 } from "@/entrypoints/utils/translateApi";
+import { DEFAULT_IMMERSIVE_SHORT_TEXT_THRESHOLD } from "@/entrypoints/utils/model";
 import { cache } from "../utils/cache";
 import { checkConfig, searchClassName, skipNode } from "../utils/check";
 import { insertFailedTip, insertLoadingSpinner } from "../utils/icon";
@@ -26,6 +27,25 @@ let isAutoTranslating = false;
 let isPreparingAutoTranslation = false;
 let observer: IntersectionObserver | null = null;
 let mutationObserver: MutationObserver | null = null;
+
+const IMMERSIVE_TEXT_STYLE_PROPERTIES = [
+	"font-family",
+	"font-size",
+	"font-weight",
+	"font-style",
+	"line-height",
+	"letter-spacing",
+	"word-spacing",
+	"text-transform",
+	"text-align",
+	"direction",
+	"writing-mode",
+	"white-space",
+	"word-break",
+	"overflow-wrap",
+	"hyphens",
+	"color",
+];
 
 const TRANSLATED_ATTR = "data-fr-translated";
 const TRANSLATED_ID_ATTR = "data-fr-node-id";
@@ -330,13 +350,58 @@ function bilingualAppendChild(node: HTMLElement, text: string) {
 	node.classList.add("fluent-read-bilingual");
 	const newNode = document.createElement("span");
 	newNode.classList.add("fluent-read-bilingual-content");
+	const inlineMode = shouldAppendInlineBilingual(node);
+	newNode.classList.add(
+		inlineMode
+			? "fluent-read-bilingual-content-inline"
+			: "fluent-read-bilingual-content-block",
+	);
 	const style = options.styles.find(
 		(item) => item.value === config.style && !item.disabled,
 	);
-	if (style?.class) {
+	if (!inlineMode && style?.class) {
 		newNode.classList.add(style.class);
 	}
+	applyImmersiveTextStyles(node, newNode, inlineMode);
 	newNode.append(text);
 	smashTruncationStyle(node);
 	node.appendChild(newNode);
+}
+
+function getImmersiveShortTextThreshold() {
+	return Number.isInteger(config.immersiveShortTextThreshold) &&
+		config.immersiveShortTextThreshold > 0
+		? config.immersiveShortTextThreshold
+		: DEFAULT_IMMERSIVE_SHORT_TEXT_THRESHOLD;
+}
+
+function shouldAppendInlineBilingual(node: HTMLElement) {
+	const text = node.textContent?.trim() || "";
+	return !!text && text.length <= getImmersiveShortTextThreshold();
+}
+
+function applyImmersiveTextStyles(
+	sourceNode: HTMLElement,
+	targetNode: HTMLElement,
+	inlineMode: boolean,
+) {
+	const computedStyle = window.getComputedStyle(sourceNode);
+	for (const property of IMMERSIVE_TEXT_STYLE_PROPERTIES) {
+		let value = computedStyle.getPropertyValue(property);
+		if (!value) {
+			continue;
+		}
+		if (!inlineMode && property === "white-space" && value === "nowrap") {
+			value = "normal";
+		}
+		if (!inlineMode && property === "overflow-wrap" && value === "normal") {
+			value = "break-word";
+		}
+		targetNode.style.setProperty(property, value, "important");
+	}
+	targetNode.style.setProperty("max-width", "100%", "important");
+	targetNode.style.setProperty("unicode-bidi", "plaintext", "important");
+	if (config.to) {
+		targetNode.lang = config.to;
+	}
 }

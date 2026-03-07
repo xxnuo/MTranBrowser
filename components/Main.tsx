@@ -18,7 +18,10 @@ import {
 } from "@/entrypoints/ui/services/toast";
 import { parseHotkey } from "@/entrypoints/utils/hotkey";
 import {
+	DEFAULT_IMMERSIVE_SHORT_TEXT_THRESHOLD,
 	DEFAULT_MIN_PARAGRAPH_CHARS,
+	IMMERSIVE_SHORT_TEXT_THRESHOLD_MAX,
+	IMMERSIVE_SHORT_TEXT_THRESHOLD_MIN,
 	MIN_PARAGRAPH_CHARS_MAX,
 	MIN_PARAGRAPH_CHARS_MIN,
 	normalizeConfig,
@@ -341,6 +344,32 @@ export default function Main() {
 			draft.minParagraphChars = next;
 		});
 		toastSuccess(t("段落最少字符数已更新为 {count}", { count: next }));
+	};
+
+	const handleImmersiveShortTextThresholdChange = (value: string) => {
+		const next = Number(value);
+		if (
+			!Number.isFinite(next) ||
+			!Number.isInteger(next) ||
+			next < IMMERSIVE_SHORT_TEXT_THRESHOLD_MIN ||
+			next > IMMERSIVE_SHORT_TEXT_THRESHOLD_MAX
+		) {
+			updateConfig((draft) => {
+				draft.immersiveShortTextThreshold =
+					DEFAULT_IMMERSIVE_SHORT_TEXT_THRESHOLD;
+			});
+			toastWarning(
+				t("短原文直连阈值必须在 {min}-{max} 之间", {
+					min: IMMERSIVE_SHORT_TEXT_THRESHOLD_MIN,
+					max: IMMERSIVE_SHORT_TEXT_THRESHOLD_MAX,
+				}),
+			);
+			return;
+		}
+		updateConfig((draft) => {
+			draft.immersiveShortTextThreshold = next;
+		});
+		toastSuccess(t("短原文直连阈值已更新为 {count}", { count: next }));
 	};
 
 	const handleExport = async () => {
@@ -668,6 +697,19 @@ export default function Main() {
 							value={String(config.minParagraphChars)}
 							onChange={(event) =>
 								handleMinParagraphCharsChange(event.target.value)
+							}
+						/>
+					</FieldRow>
+
+					<FieldRow label={t("短原文直连阈值")}>
+						<Input
+							type="number"
+							min={IMMERSIVE_SHORT_TEXT_THRESHOLD_MIN}
+							max={IMMERSIVE_SHORT_TEXT_THRESHOLD_MAX}
+							step={1}
+							value={String(config.immersiveShortTextThreshold)}
+							onChange={(event) =>
+								handleImmersiveShortTextThresholdChange(event.target.value)
 							}
 						/>
 					</FieldRow>

@@ -81,6 +81,7 @@ export const localeMessages: Record<UiLanguage, Record<string, string>> = {
 		输入框目标语言: "Input Target Language",
 		翻译并发数: "Translation Concurrency",
 		段落最少字符数: "Minimum Paragraph Characters",
+		短原文直连阈值: "Inline Translation Threshold",
 		访问令牌: "Access Token",
 		"Azure 端点": "Azure Endpoint",
 		端点地址格式不正确: "Invalid endpoint format",
@@ -118,6 +119,10 @@ export const localeMessages: Record<UiLanguage, Record<string, string>> = {
 			"Minimum paragraph characters must be between {min}-{max}",
 		"段落最少字符数已更新为 {count}":
 			"Minimum paragraph characters updated to {count}",
+		"短原文直连阈值必须在 {min}-{max} 之间":
+			"Inline translation threshold must be between {min}-{max}",
+		"短原文直连阈值已更新为 {count}":
+			"Inline translation threshold updated to {count}",
 		没有找到配置信息: "No configuration found",
 		配置无效或格式不正确: "Invalid configuration or format",
 		配置导入成功: "Configuration imported",

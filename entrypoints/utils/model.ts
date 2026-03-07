@@ -8,7 +8,7 @@ interface IExtra {
 	[key: string]: any;
 }
 
-export const DEFAULT_MIN_PARAGRAPH_CHARS = 3;
+export const DEFAULT_MIN_PARAGRAPH_CHARS = 5;
 export const MIN_PARAGRAPH_CHARS_MIN = 1;
 export const MIN_PARAGRAPH_CHARS_MAX = 3072;
 

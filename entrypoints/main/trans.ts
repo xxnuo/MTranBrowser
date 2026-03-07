@@ -315,11 +315,16 @@ export function handleBilingualTranslation(
 	if (cacheKey) {
 		const cached = cache.localGet(cacheKey);
 		if (cached) {
+			const restoredText = payload ? payload.restoreText(cached) : cached;
+			if (!restoredText) {
+				bilingualTranslate(node, nodeOuterHTML, rule, payload);
+				return;
+			}
 			const spinner = insertLoadingSpinner(node as HTMLElement, true);
 			setTimeout(() => {
 				spinner.remove();
 				clearPendingHtml(nodeOuterHTML);
-				bilingualAppendChild(node as HTMLElement, cached);
+				bilingualAppendChild(node as HTMLElement, restoredText);
 			}, 250);
 			return;
 		}
@@ -371,6 +376,13 @@ function bilingualTranslate(
 		.then((text: string) => {
 			spinner.remove();
 			clearPendingHtml(nodeOuterHTML);
+			if (payload) {
+				const restoredText = payload.restoreText(text);
+				if (!restoredText) {
+					return;
+				}
+				text = restoredText;
+			}
 			if (!text || text === origin) {
 				return;
 			}

@@ -8,8 +8,10 @@ const PLACEHOLDER_ATTR = "data-fr-keep-id";
 
 type ProtectedEntry = {
 	id: string;
+	index: number;
 	token: string;
 	html: string;
+	text: string;
 };
 
 export type ActiveFullPageRuleContext = FullPageRuleMatchResponse;
@@ -18,8 +20,48 @@ export type RuleNodePayload = {
 	bilingualSource: string;
 	machineSource: string;
 	aiSource: string;
+	restoreText: (translatedText: string) => string | null;
 	restoreHtml: (translatedHtml: string) => string | null;
 };
+
+function escapeRegExp(value: string) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replaceProtectedTokens(
+	source: string,
+	entries: ProtectedEntry[],
+	replaceValue: (entry: ProtectedEntry) => string,
+) {
+	let nextSource = source;
+	const restoredIds = new Set<string>();
+
+	for (const entry of entries) {
+		if (nextSource.includes(entry.token)) {
+			nextSource = nextSource.split(entry.token).join(replaceValue(entry));
+			restoredIds.add(entry.id);
+			continue;
+		}
+
+		const loosePattern = new RegExp(
+			`_+\\s*FR[_\\s-]*KEEP(?:[_\\s-]*${escapeRegExp(String(entry.index))})?\\s*_+`,
+			"i",
+		);
+		let replaced = false;
+		nextSource = nextSource.replace(loosePattern, () => {
+			replaced = true;
+			return replaceValue(entry);
+		});
+		if (replaced) {
+			restoredIds.add(entry.id);
+		}
+	}
+
+	return {
+		value: nextSource,
+		restoredIds,
+	};
+}
 
 function querySelectorAllSafe(root: ParentNode, selector: string) {
 	return Array.from(root.querySelectorAll(selector)) as Element[];
@@ -121,18 +163,14 @@ export function collectRuleMatchedNodes(
 }
 
 function restoreProtectedHtml(html: string, entries: ProtectedEntry[]) {
-	let nextHtml = html;
-	const tokenMatches = new Set<string>();
-	for (const entry of entries) {
-		if (nextHtml.includes(entry.token)) {
-			tokenMatches.add(entry.id);
-			nextHtml = nextHtml.split(entry.token).join(entry.html);
-		}
-	}
+	const { value: nextHtml, restoredIds } = replaceProtectedTokens(
+		html,
+		entries,
+		(entry) => entry.html,
+	);
 
 	const container = document.createElement("div");
 	container.innerHTML = nextHtml;
-	const restoredIds = new Set<string>(tokenMatches);
 	for (const entry of entries) {
 		const placeholders = Array.from(
 			container.querySelectorAll(`[${PLACEHOLDER_ATTR}="${entry.id}"]`),
@@ -153,11 +191,24 @@ function restoreProtectedHtml(html: string, entries: ProtectedEntry[]) {
 	return container.innerHTML;
 }
 
+function restoreProtectedText(text: string, entries: ProtectedEntry[]) {
+	const { value, restoredIds } = replaceProtectedTokens(
+		text,
+		entries,
+		(entry) => entry.text,
+	);
+	if (restoredIds.size !== entries.length) {
+		return null;
+	}
+	return value;
+}
+
 function createProtectedClone(node: Element, keepSelector: string) {
 	const clonedNode = node.cloneNode(true) as Element;
 	if (!keepSelector) {
 		return {
 			node: clonedNode,
+			restoreText: (translatedText: string) => translatedText,
 			restoreHtml: (translatedHtml: string) => translatedHtml,
 		};
 	}
@@ -167,12 +218,14 @@ function createProtectedClone(node: Element, keepSelector: string) {
 	} catch {
 		return {
 			node: clonedNode,
+			restoreText: (translatedText: string) => translatedText,
 			restoreHtml: (translatedHtml: string) => translatedHtml,
 		};
 	}
 	if (!protectedNodes.length) {
 		return {
 			node: clonedNode,
+			restoreText: (translatedText: string) => translatedText,
 			restoreHtml: (translatedHtml: string) => translatedHtml,
 		};
 	}
@@ -182,8 +235,10 @@ function createProtectedClone(node: Element, keepSelector: string) {
 		const token = `__FR_KEEP_${index}__`;
 		entries.push({
 			id,
+			index,
 			token,
 			html: protectedNode.outerHTML,
+			text: protectedNode.textContent || "",
 		});
 		const placeholder = document.createElement("span");
 		placeholder.setAttribute(PLACEHOLDER_ATTR, id);
@@ -192,6 +247,8 @@ function createProtectedClone(node: Element, keepSelector: string) {
 	});
 	return {
 		node: clonedNode,
+		restoreText: (translatedText: string) =>
+			restoreProtectedText(translatedText, entries),
 		restoreHtml: (translatedHtml: string) =>
 			restoreProtectedHtml(translatedHtml, entries),
 	};
@@ -206,6 +263,7 @@ export function createRuleNodePayload(
 		bilingualSource: protectedClone.node.textContent?.trim() || "",
 		machineSource: protectedClone.node.innerHTML,
 		aiSource: LLMStandardHTML(protectedClone.node),
+		restoreText: protectedClone.restoreText,
 		restoreHtml: protectedClone.restoreHtml,
 	};
 }

@@ -13,6 +13,7 @@ const BALL_SIZE = 32;
 const ICON_SIZE = 18;
 const SIDE_OFFSET = 16;
 const EDGE_PADDING = 12;
+const DRAG_START_THRESHOLD = 4;
 
 interface FloatingBallProps {
 	position: "left" | "right";
@@ -31,12 +32,18 @@ export default function FloatingBall({
 	const [internalPosition, setInternalPosition] = useState<"left" | "right">(
 		position,
 	);
+	const [isPointerDown, setIsPointerDown] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [dragY, setDragY] = useState<number | null>(null);
 	const [coords, setCoords] = useState({ x: 0, y: 0 });
 	const nodeRef = useRef<HTMLButtonElement | null>(null);
-	const dragStartRef = useRef({ x: 0, y: 0, moved: false });
+	const dragStartRef = useRef({
+		startX: 0,
+		startY: 0,
+		y: 0,
+		moved: false,
+	});
 
 	useEffect(() => {
 		setInternalPosition(position);
@@ -44,8 +51,20 @@ export default function FloatingBall({
 
 	useEffect(() => {
 		const onMove = (event: MouseEvent) => {
-			if (!isDragging) {
+			if (!isPointerDown) {
 				return;
+			}
+			if (!dragStartRef.current.moved) {
+				const distance = Math.hypot(
+					event.clientX - dragStartRef.current.startX,
+					event.clientY - dragStartRef.current.startY,
+				);
+				if (distance < DRAG_START_THRESHOLD) {
+					return;
+				}
+				dragStartRef.current.moved = true;
+				setIsDragging(true);
+				setIsExpanded(false);
 			}
 			const nextY = Math.min(
 				window.innerHeight - BALL_SIZE - EDGE_PADDING,
@@ -54,14 +73,16 @@ export default function FloatingBall({
 					coords.y + (event.clientY - dragStartRef.current.y),
 				),
 			);
-			dragStartRef.current.moved = true;
 			setCoords((prev) => ({ ...prev, y: nextY }));
-			dragStartRef.current.x = event.clientX;
 			dragStartRef.current.y = event.clientY;
 		};
 
 		const onUp = () => {
-			if (!isDragging) {
+			if (!isPointerDown) {
+				return;
+			}
+			setIsPointerDown(false);
+			if (!dragStartRef.current.moved) {
 				return;
 			}
 			setIsDragging(false);
@@ -73,11 +94,9 @@ export default function FloatingBall({
 					Math.max(EDGE_PADDING + BALL_SIZE / 2, coords.y + BALL_SIZE / 2),
 				),
 			);
-			window.removeEventListener("mousemove", onMove);
-			window.removeEventListener("mouseup", onUp);
 		};
 
-		if (isDragging) {
+		if (isPointerDown) {
 			window.addEventListener("mousemove", onMove);
 			window.addEventListener("mouseup", onUp);
 		}
@@ -85,7 +104,7 @@ export default function FloatingBall({
 			window.removeEventListener("mousemove", onMove);
 			window.removeEventListener("mouseup", onUp);
 		};
-	}, [coords.y, isDragging, onPositionChanged, position]);
+	}, [coords.y, isPointerDown, onPositionChanged, position]);
 
 	const style = useMemo<CSSProperties>(() => {
 		const baseStyle: CSSProperties = {
@@ -184,9 +203,14 @@ export default function FloatingBall({
 		}
 		const rect = nodeRef.current.getBoundingClientRect();
 		setCoords({ x: rect.left, y: rect.top });
-		dragStartRef.current = { x: event.clientX, y: event.clientY, moved: false };
-		setIsDragging(true);
-		setIsExpanded(false);
+		dragStartRef.current = {
+			startX: event.clientX,
+			startY: event.clientY,
+			y: event.clientY,
+			moved: false,
+		};
+		setIsPointerDown(true);
+		setIsDragging(false);
 	};
 
 	const handleClick = () => {

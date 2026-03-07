@@ -1,18 +1,20 @@
 import { defaultOption, services } from "./option";
-import { DEFAULT_FULL_PAGE_RULE_URL } from "./fullPageRule";
 
 interface IMapping {
 	[key: string]: string;
 }
 
-// 内包，存储额外信息
 interface IExtra {
 	[key: string]: any;
 }
 
+export const DEFAULT_MIN_PARAGRAPH_CHARS = 3;
+export const MIN_PARAGRAPH_CHARS_MIN = 1;
+export const MIN_PARAGRAPH_CHARS_MAX = 3072;
+
 export class Config {
-	on: boolean; // 是否开启
-	autoTranslate: boolean; // 是否即时翻译
+	on: boolean;
+	autoTranslate: boolean;
 	from: string;
 	to: string;
 	hotkey: string;
@@ -25,41 +27,41 @@ export class Config {
 	appid: string;
 	key: string;
 	model: IMapping;
-	customModel: IMapping; // 自定义模型名称
-	proxy: IMapping; // 代理地址
-	custom: string; // 本地服务地址
-	extra: IExtra; // 额外信息（内包信息）
-	robot_id: IMapping; // 机器人 ID（兼容 coze）
+	customModel: IMapping;
+	proxy: IMapping;
+	custom: string;
+	extra: IExtra;
+	robot_id: IMapping;
 	system_role: IMapping;
 	user_role: IMapping;
-	count: number; // 翻译次数
-	theme: string; // 主题模式：'auto' | 'light' | 'dark'
+	count: number;
+	theme: string;
 	uiLanguage: string;
-	useCache: boolean; // 是否使用缓存
+	useCache: boolean;
 	richTextTranslate: boolean;
-	disableFloatingBall: boolean; // 是否禁用悬浮球
-	floatingBallPosition: "left" | "right"; // 悬浮球位置
-	floatingBallHotkey: string; // 悬浮球快捷键
-	customFloatingBallHotkey: string; // 自定义悬浮球快捷键
-	customHotkey: string; // 自定义鼠标悬浮快捷键
-	disableSelectionTranslator: boolean; // 是否禁用划词翻译
+	disableFloatingBall: boolean;
+	floatingBallPosition: "left" | "right";
+	floatingBallHotkey: string;
+	customFloatingBallHotkey: string;
+	customHotkey: string;
+	disableSelectionTranslator: boolean;
 	mtranServerUrl: string;
-	deeplx: string; // DeepLX 服务地址
-	selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
-	newApiUrl: string; // NewAPI地址
-	ollamaUrl: string; // Ollama地址
-	reasoningEffort: IMapping; // 思维链长度
-	openaiExtraParams: IMapping; // OpenAI兼容额外参数
-	maxConcurrentTranslations: number; // 最大并发翻译数量
-	youdaoAppKey: string; // 有道翻译 App Key
-	youdaoAppSecret: string; // 有道翻译 App Secret
-	tencentSecretId: string; // 腾讯云 Secret ID
-	tencentSecretKey: string; // 腾讯云 Secret Key
-	azureOpenaiEndpoint: string; // Azure OpenAI 端点地址
-	animations: boolean; // 是否启用动画效果
-	inputBoxTranslationTrigger: string; // 输入框翻译触发方式
-	inputBoxTranslationTarget: string; // 输入框翻译目标语言
-	fullPageRuleUrl: string;
+	deeplx: string;
+	selectionTranslatorMode: string;
+	newApiUrl: string;
+	ollamaUrl: string;
+	reasoningEffort: IMapping;
+	openaiExtraParams: IMapping;
+	maxConcurrentTranslations: number;
+	youdaoAppKey: string;
+	youdaoAppSecret: string;
+	tencentSecretId: string;
+	tencentSecretKey: string;
+	azureOpenaiEndpoint: string;
+	animations: boolean;
+	inputBoxTranslationTrigger: string;
+	inputBoxTranslationTarget: string;
+	minParagraphChars: number;
 
 	constructor() {
 		this.on = true;
@@ -84,38 +86,52 @@ export class Config {
 		this.system_role = systemRoleFactory();
 		this.user_role = userRoleFactory();
 		this.count = 0;
-		this.theme = "auto"; // 默认跟随系统
+		this.theme = "auto";
 		this.uiLanguage = "auto";
-		this.useCache = true; // 默认开启缓存
+		this.useCache = true;
 		this.richTextTranslate = true;
-		this.disableFloatingBall = false; // 默认启用悬浮球
-		this.floatingBallPosition = "right"; // 默认在右侧
+		this.disableFloatingBall = false;
+		this.floatingBallPosition = "right";
 		this.floatingBallHotkey = "Alt+A";
-		this.customFloatingBallHotkey = ""; // 自定义快捷键为空
-		this.customHotkey = ""; // 自定义鼠标悬浮快捷键为空
-		this.disableSelectionTranslator = false; // 默认不禁用划词翻译
+		this.customFloatingBallHotkey = "";
+		this.customHotkey = "";
+		this.disableSelectionTranslator = false;
 		this.mtranServerUrl = defaultOption.mtranServerUrl;
-		this.deeplx = ""; // DeepLX 默认服务地址
-		this.selectionTranslatorMode = "bilingual"; // 默认双语显示模式
-		this.newApiUrl = "http://localhost:3000"; // NewAPI 默认地址
-		this.ollamaUrl = "http://localhost:11434"; // Ollama 默认地址
+		this.deeplx = "";
+		this.selectionTranslatorMode = "bilingual";
+		this.newApiUrl = "http://localhost:3000";
+		this.ollamaUrl = "http://localhost:11434";
 		this.reasoningEffort = {};
 		this.openaiExtraParams = {};
-		this.maxConcurrentTranslations = 6; // 默认最大并发数为6
-		this.youdaoAppKey = ""; // 有道翻译 App Key
-		this.youdaoAppSecret = ""; // 有道翻译 App Secret
-		this.tencentSecretId = ""; // 腾讯云 Secret ID
-		this.tencentSecretKey = ""; // 腾讯云 Secret Key
-		this.azureOpenaiEndpoint = ""; // Azure OpenAI 端点地址
-		this.animations = true; // 默认启用动画
-		this.inputBoxTranslationTrigger = "disabled"; // 默认关闭输入框翻译
-		this.inputBoxTranslationTarget = "en"; // 默认翻译成英文
-		this.fullPageRuleUrl = DEFAULT_FULL_PAGE_RULE_URL;
-		this.uiLanguage = "auto";
+		this.maxConcurrentTranslations = 6;
+		this.youdaoAppKey = "";
+		this.youdaoAppSecret = "";
+		this.tencentSecretId = "";
+		this.tencentSecretKey = "";
+		this.azureOpenaiEndpoint = "";
+		this.animations = true;
+		this.inputBoxTranslationTrigger = "disabled";
+		this.inputBoxTranslationTarget = "en";
+		this.minParagraphChars = DEFAULT_MIN_PARAGRAPH_CHARS;
 	}
 }
 
-// 构建所有服务的 system_role
+export function normalizeConfig(input: unknown) {
+	const next = new Config();
+	if (typeof input !== "object" || input === null) {
+		return next;
+	}
+	const source = input as Record<string, unknown>;
+	const target = next as unknown as Record<string, unknown>;
+	for (const key of Object.keys(next) as Array<keyof Config>) {
+		const value = source[key as string];
+		if (value !== undefined) {
+			target[key as string] = value;
+		}
+	}
+	return next;
+}
+
 function systemRoleFactory(): IMapping {
 	const systems_role: IMapping = {};
 	Object.keys(services).forEach((key) => {
@@ -124,7 +140,6 @@ function systemRoleFactory(): IMapping {
 	return systems_role;
 }
 
-// 构建所有服务的 user_role
 function userRoleFactory(): IMapping {
 	const users_role: IMapping = {};
 	Object.keys(services).forEach((key) => {

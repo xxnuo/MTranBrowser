@@ -1,6 +1,5 @@
 import { storage } from "@wxt-dev/storage";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import browser from "webextension-polyfill";
 import CustomHotkeyInput from "@/components/CustomHotkeyInput";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -8,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { getUiLanguageOptions, localizeOptions } from "@/lib/i18n";
 import { useConfig } from "@/entrypoints/ui/hooks/useConfig";
-import { useI18n } from "@/entrypoints/ui/i18n/I18nProvider";
 import { useTheme } from "@/entrypoints/ui/hooks/useTheme";
+import { useI18n } from "@/entrypoints/ui/i18n/I18nProvider";
 import { broadcastMessage } from "@/entrypoints/ui/services/messages";
 import {
 	toastError,
@@ -19,8 +17,13 @@ import {
 	toastWarning,
 } from "@/entrypoints/ui/services/toast";
 import { parseHotkey } from "@/entrypoints/utils/hotkey";
+import {
+	DEFAULT_MIN_PARAGRAPH_CHARS,
+	MIN_PARAGRAPH_CHARS_MAX,
+	MIN_PARAGRAPH_CHARS_MIN,
+	normalizeConfig,
+} from "@/entrypoints/utils/model";
 import { parseOpenAIExtraParams } from "@/entrypoints/utils/openaiCompat";
-import { DEFAULT_FULL_PAGE_RULE_URL } from "@/entrypoints/utils/fullPageRule";
 import {
 	customModelString,
 	defaultOption,
@@ -29,6 +32,7 @@ import {
 	services,
 	servicesType,
 } from "@/entrypoints/utils/option";
+import { getUiLanguageOptions, localizeOptions } from "@/lib/i18n";
 
 type TabKey = "basic" | "features" | "service" | "advanced";
 
@@ -86,7 +90,6 @@ export default function Main() {
 	const [exportData, setExportData] = useState("");
 	const [showImportBox, setShowImportBox] = useState(false);
 	const [importData, setImportData] = useState("");
-	const [ruleUrlDraft, setRuleUrlDraft] = useState(DEFAULT_FULL_PAGE_RULE_URL);
 
 	const localizedOptions = useMemo(() => localizeOptions(options, t), [t]);
 	const uiLanguageOptions = useMemo(() => getUiLanguageOptions(t), [t]);
@@ -99,13 +102,6 @@ export default function Main() {
 		],
 		[t],
 	);
-
-	useEffect(() => {
-		if (!loaded) {
-			return;
-		}
-		setRuleUrlDraft(config.fullPageRuleUrl || DEFAULT_FULL_PAGE_RULE_URL);
-	}, [config.fullPageRuleUrl, loaded]);
 
 	useEffect(() => {
 		if (!loaded) {
@@ -322,48 +318,29 @@ export default function Main() {
 		toastSuccess(t("并发数量已更新为 {count}", { count: next }));
 	};
 
-	const saveRuleUrl = async (nextUrl: string, successMessage?: string) => {
-		try {
-			const response = (await browser.runtime.sendMessage({
-				type: "mtranbrowser:update-rule-source",
-				url: nextUrl,
-			})) as any;
-			if (!response?.success) {
-				throw new Error(response?.error || t("规则地址校验失败"));
-			}
-			const sourceUrl = response.sourceUrl || nextUrl;
+	const handleMinParagraphCharsChange = (value: string) => {
+		const next = Number(value);
+		if (
+			!Number.isFinite(next) ||
+			!Number.isInteger(next) ||
+			next < MIN_PARAGRAPH_CHARS_MIN ||
+			next > MIN_PARAGRAPH_CHARS_MAX
+		) {
 			updateConfig((draft) => {
-				draft.fullPageRuleUrl = sourceUrl;
+				draft.minParagraphChars = DEFAULT_MIN_PARAGRAPH_CHARS;
 			});
-			setRuleUrlDraft(sourceUrl);
-			toastSuccess(successMessage || t("规则地址已保存"));
-			return true;
-		} catch (error) {
-			toastError(
-				error instanceof Error ? error.message : t("规则地址校验失败"),
+			toastWarning(
+				t("段落最少字符数必须在 {min}-{max} 之间", {
+					min: MIN_PARAGRAPH_CHARS_MIN,
+					max: MIN_PARAGRAPH_CHARS_MAX,
+				}),
 			);
-			return false;
-		}
-	};
-
-	const handleSaveRuleUrl = async () => {
-		const nextUrl = ruleUrlDraft.trim();
-		if (!nextUrl) {
-			toastError(t("规则地址不能为空"));
 			return;
 		}
-		await saveRuleUrl(nextUrl);
-	};
-
-	const handleResetRuleUrl = async () => {
-		setRuleUrlDraft(DEFAULT_FULL_PAGE_RULE_URL);
-		const saved = await saveRuleUrl(
-			DEFAULT_FULL_PAGE_RULE_URL,
-			t("已恢复默认规则地址"),
-		);
-		if (!saved) {
-			setRuleUrlDraft(config.fullPageRuleUrl || DEFAULT_FULL_PAGE_RULE_URL);
-		}
+		updateConfig((draft) => {
+			draft.minParagraphChars = next;
+		});
+		toastSuccess(t("段落最少字符数已更新为 {count}", { count: next }));
 	};
 
 	const handleExport = async () => {
@@ -419,7 +396,10 @@ export default function Main() {
 				toastError(t("配置无效或格式不正确"));
 				return;
 			}
-			await storage.setItem("local:config", JSON.stringify(parsedConfig));
+			await storage.setItem(
+				"local:config",
+				JSON.stringify(normalizeConfig(parsedConfig)),
+			);
 			toastSuccess(t("配置导入成功"));
 			setShowImportBox(false);
 			setImportData("");
@@ -676,6 +656,19 @@ export default function Main() {
 							max={100}
 							value={String(config.maxConcurrentTranslations)}
 							onChange={(event) => handleConcurrentChange(event.target.value)}
+						/>
+					</FieldRow>
+
+					<FieldRow label={t("段落最少字符数")}>
+						<Input
+							type="number"
+							min={MIN_PARAGRAPH_CHARS_MIN}
+							max={MIN_PARAGRAPH_CHARS_MAX}
+							step={1}
+							value={String(config.minParagraphChars)}
+							onChange={(event) =>
+								handleMinParagraphCharsChange(event.target.value)
+							}
 						/>
 					</FieldRow>
 				</div>
@@ -1012,21 +1005,6 @@ export default function Main() {
 								})
 							}
 						/>
-					</FieldRow>
-
-					<FieldRow label={t("全文规则 URL")}>
-						<div className="space-y-2">
-							<Input
-								value={ruleUrlDraft}
-								onChange={(event) => setRuleUrlDraft(event.target.value)}
-							/>
-							<div className="grid grid-cols-2 gap-2">
-								<Button onClick={handleSaveRuleUrl}>{t("保存规则地址")}</Button>
-								<Button variant="secondary" onClick={handleResetRuleUrl}>
-									{t("重置默认规则地址")}
-								</Button>
-							</div>
-						</div>
 					</FieldRow>
 
 					<div className="grid grid-cols-2 gap-2">

@@ -1,10 +1,4 @@
 import { storage } from "@wxt-dev/storage";
-import {
-	type ActiveFullPageRuleContext,
-	collectRuleMatchedNodes,
-	createRuleNodePayload,
-	type RuleNodePayload,
-} from "@/entrypoints/main/fullPageRule";
 import { getMainDomain, replaceCompatFn } from "@/entrypoints/main/compat";
 import {
 	beautyHTML,
@@ -20,7 +14,6 @@ import {
 	cancelAllTranslations,
 	translateText,
 } from "@/entrypoints/utils/translateApi";
-import type { NormalizedSiteRule } from "@/entrypoints/utils/fullPageRule";
 import { cache } from "../utils/cache";
 import { checkConfig, searchClassName, skipNode } from "../utils/check";
 import { insertFailedTip, insertLoadingSpinner } from "../utils/icon";
@@ -33,7 +26,6 @@ let isAutoTranslating = false;
 let isPreparingAutoTranslation = false;
 let observer: IntersectionObserver | null = null;
 let mutationObserver: MutationObserver | null = null;
-let activeFullPageRuleContext: ActiveFullPageRuleContext | null = null;
 
 const TRANSLATED_ATTR = "data-fr-translated";
 const TRANSLATED_ID_ATTR = "data-fr-node-id";
@@ -44,106 +36,10 @@ function clearPendingHtml(nodeOuterHTML: string) {
 	htmlSet.delete(nodeOuterHTML);
 }
 
-function getActiveRule() {
-	return activeFullPageRuleContext?.rule || null;
-}
-
-async function requestFullPageRuleContext() {
-	try {
-		const response = await browser.runtime.sendMessage({
-			type: "mtranbrowser:get-fullpage-rule",
-			url: location.href,
-			ruleUrl: config.fullPageRuleUrl,
-		});
-		if (
-			response &&
-			typeof response === "object" &&
-			(!("success" in response) || response.success !== false)
-		) {
-			return response as ActiveFullPageRuleContext;
-		}
-	} catch (error) {
-		console.error("加载全文规则失败:", error);
-	}
-	return null;
-}
-
-function collectNodesForRoot(
-	rootNode: ParentNode,
-	rule: NormalizedSiteRule | null,
-) {
-	if (!rule) {
-		return grabAllNode(rootNode as Node);
-	}
-	return collectRuleMatchedNodes(rootNode, rule);
-}
-
-function logActiveRule(
-	ruleContext: ActiveFullPageRuleContext,
-	nodeCount: number,
-) {
-	if (!ruleContext.rule) {
-		return;
-	}
-	console.log("[MTranBrowser] 命中全文规则", {
-		url: location.href,
-		sourceUrl: ruleContext.sourceUrl,
-		fetchedAt: ruleContext.fetchedAt,
-		pattern: ruleContext.rule.pattern,
-		selector: ruleContext.rule.selector,
-		rootsSelector: ruleContext.rule.rootsSelector,
-		ignoreSelector: ruleContext.rule.ignoreSelector,
-		keepSelector: ruleContext.rule.keepSelector,
-		autoScan: ruleContext.rule.autoScan,
-		nodeCount,
-	});
-}
-
-function resolveInitialTargets(ruleContext: ActiveFullPageRuleContext | null) {
-	const rule = ruleContext?.rule || null;
-	if (rule) {
-		try {
-			const nodes = collectNodesForRoot(document.body, rule);
-			if (nodes.length) {
-				logActiveRule(ruleContext as ActiveFullPageRuleContext, nodes.length);
-				return {
-					nodes,
-					ruleContext,
-				};
-			}
-			console.warn(
-				"[MTranBrowser] 命中全文规则，但未选中任何节点，已回退通用扫描",
-				{
-					url: location.href,
-					pattern: rule.pattern,
-					sourceUrl: ruleContext?.sourceUrl,
-				},
-			);
-		} catch (error) {
-			console.error("规则选点失败，回退通用扫描:", error);
-		}
-	}
-	return {
-		nodes: grabAllNode(document.body),
-		ruleContext: null,
-	};
-}
-
 function collectMutationTargets(rootNode: Element) {
-	const rule = getActiveRule();
-	try {
-		return collectNodesForRoot(rootNode, rule).filter(
-			(node) => !node.hasAttribute(TRANSLATED_ATTR),
-		);
-	} catch (error) {
-		console.error("规则增量选点失败:", error);
-		if (rule) {
-			return [];
-		}
-		return grabAllNode(rootNode).filter(
-			(node) => !node.hasAttribute(TRANSLATED_ATTR),
-		);
-	}
+	return grabAllNode(rootNode).filter(
+		(node) => !node.hasAttribute(TRANSLATED_ATTR),
+	);
 }
 
 export function restoreOriginalContent() {
@@ -178,7 +74,6 @@ export function restoreOriginalContent() {
 	}
 	isAutoTranslating = false;
 	isPreparingAutoTranslation = false;
-	activeFullPageRuleContext = null;
 	htmlSet.clear();
 	nodeIdCounter = 0;
 	for (const element of document.querySelectorAll(
@@ -194,12 +89,10 @@ export async function autoTranslateEnglishPage() {
 	}
 	isPreparingAutoTranslation = true;
 	try {
-		const requestedRuleContext = await requestFullPageRuleContext();
-		const { nodes, ruleContext } = resolveInitialTargets(requestedRuleContext);
+		const nodes = grabAllNode(document.body);
 		if (!nodes.length) {
 			return;
 		}
-		activeFullPageRuleContext = ruleContext;
 		isAutoTranslating = true;
 		observer = new IntersectionObserver(
 			(entries, currentObserver) => {
@@ -216,9 +109,9 @@ export async function autoTranslateEnglishPage() {
 					originalContents.set(nodeId, node.innerHTML);
 					node.setAttribute(TRANSLATED_ATTR, "true");
 					if (config.display === styles.bilingualTranslation) {
-						handleBilingualTranslation(node, false, getActiveRule());
+						handleBilingualTranslation(node, false);
 					} else {
-						handleSingleTranslation(node, false, getActiveRule());
+						handleSingleTranslation(node, false);
 					}
 					currentObserver.unobserve(node);
 				}
@@ -276,18 +169,14 @@ export function handleTranslation(
 		}
 		htmlSet.add(nodeOuterHTML);
 		if (config.display === styles.bilingualTranslation) {
-			handleBilingualTranslation(node, delayTime > 0, null);
+			handleBilingualTranslation(node, delayTime > 0);
 		} else {
-			handleSingleTranslation(node, delayTime > 0, null);
+			handleSingleTranslation(node, delayTime > 0);
 		}
 	}, delayTime);
 }
 
-export function handleBilingualTranslation(
-	node: Element,
-	slide: boolean,
-	rule: NormalizedSiteRule | null = null,
-) {
+export function handleBilingualTranslation(node: Element, slide: boolean) {
 	const nodeOuterHTML = node.outerHTML;
 	const bilingualNode = searchClassName(node, "fluent-read-bilingual");
 	if (bilingualNode) {
@@ -310,33 +199,23 @@ export function handleBilingualTranslation(
 		}, 250);
 		return;
 	}
-	const payload = rule ? createRuleNodePayload(node, rule) : null;
-	const cacheKey = payload?.bilingualSource || node.textContent || "";
+	const cacheKey = node.textContent || "";
 	if (cacheKey) {
 		const cached = cache.localGet(cacheKey);
 		if (cached) {
-			const restoredText = payload ? payload.restoreText(cached) : cached;
-			if (!restoredText) {
-				bilingualTranslate(node, nodeOuterHTML, rule, payload);
-				return;
-			}
 			const spinner = insertLoadingSpinner(node as HTMLElement, true);
 			setTimeout(() => {
 				spinner.remove();
 				clearPendingHtml(nodeOuterHTML);
-				bilingualAppendChild(node as HTMLElement, restoredText);
+				bilingualAppendChild(node as HTMLElement, cached);
 			}, 250);
 			return;
 		}
 	}
-	bilingualTranslate(node, nodeOuterHTML, rule, payload);
+	bilingualTranslate(node, nodeOuterHTML);
 }
 
-export function handleSingleTranslation(
-	node: Element,
-	_slide: boolean,
-	rule: NormalizedSiteRule | null = null,
-) {
+export function handleSingleTranslation(node: Element, _slide: boolean) {
 	const nodeOuterHTML = node.outerHTML;
 	const outerHTMLCache = cache.localGet(node.outerHTML);
 	if (outerHTMLCache) {
@@ -353,16 +232,11 @@ export function handleSingleTranslation(
 		}, 250);
 		return;
 	}
-	singleTranslate(node, rule);
+	singleTranslate(node);
 }
 
-function bilingualTranslate(
-	node: Element,
-	nodeOuterHTML: string,
-	rule: NormalizedSiteRule | null,
-	payload: RuleNodePayload | null,
-) {
-	const origin = payload?.bilingualSource || node.textContent || "";
+function bilingualTranslate(node: Element, nodeOuterHTML: string) {
+	const origin = node.textContent || "";
 	if (!origin) {
 		clearPendingHtml(nodeOuterHTML);
 		return;
@@ -376,13 +250,6 @@ function bilingualTranslate(
 		.then((text: string) => {
 			spinner.remove();
 			clearPendingHtml(nodeOuterHTML);
-			if (payload) {
-				const restoredText = payload.restoreText(text);
-				if (!restoredText) {
-					return;
-				}
-				text = restoredText;
-			}
 			if (!text || text === origin) {
 				return;
 			}
@@ -399,12 +266,8 @@ function bilingualTranslate(
 		});
 }
 
-export function singleTranslate(
-	node: Element,
-	rule: NormalizedSiteRule | null = null,
-) {
-	const payload = rule ? createRuleNodePayload(node, rule) : null;
-	const plainText = payload?.bilingualSource || node.textContent || "";
+export function singleTranslate(node: Element) {
+	const plainText = node.textContent || "";
 	if (!plainText) {
 		clearPendingHtml(node.outerHTML);
 		return;
@@ -413,13 +276,9 @@ export function singleTranslate(
 		clearPendingHtml(node.outerHTML);
 		return;
 	}
-	const origin = payload
-		? servicesType.isMachine(config.service)
-			? payload.machineSource
-			: payload.aiSource
-		: servicesType.isMachine(config.service)
-			? node.innerHTML
-			: LLMStandardHTML(node);
+	const origin = servicesType.isMachine(config.service)
+		? node.innerHTML
+		: LLMStandardHTML(node);
 	if (!origin) {
 		clearPendingHtml(node.outerHTML);
 		return;
@@ -431,13 +290,6 @@ export function singleTranslate(
 			spinner.remove();
 			clearPendingHtml(oldOuterHtml);
 			text = beautyHTML(text);
-			if (payload) {
-				const restoredHtml = payload.restoreHtml(text);
-				if (!restoredHtml) {
-					return;
-				}
-				text = restoredHtml;
-			}
 			if (!text || node.innerHTML === text) {
 				return;
 			}

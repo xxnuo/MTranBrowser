@@ -1,6 +1,8 @@
 import { html } from "js-beautify";
 import { getMainDomain, selectCompatFn } from "@/entrypoints/main/compat";
 import { handleBtnTranslation } from "@/entrypoints/main/trans";
+import { config } from "@/entrypoints/utils/config";
+import { DEFAULT_MIN_PARAGRAPH_CHARS } from "@/entrypoints/utils/model";
 
 // 直接翻译的标签集合（块级元素）
 const directSet = new Set([
@@ -214,21 +216,33 @@ function shouldSkipNode(node: any, tag: string): boolean {
 		skipSet.has(tag) ||
 		node.classList?.contains("notranslate") ||
 		node.isContentEditable ||
-		checkTextSize(node) ||
+		checkTextSize(node, tag) ||
 		isMainlyNumericContent(node)
 	);
 }
 
 // 检查文本长度
-function checkTextSize(node: any): boolean {
+function checkTextSize(node: any, tag: string): boolean {
+	const trimmedTextLength = node.textContent.trim().length;
+	const minTextLength = getMinTextLength(node, tag);
 	// 1. 若文本内容长度超过 3072
 	// 2. 或者 outerHTML 长度超过 4096，都视为过长
 	// 3. 少于3个字符
 	return (
 		node.textContent.length > 3072 ||
 		(node.outerHTML && node.outerHTML.length > 4096) ||
-		node.textContent.length < 3
+		trimmedTextLength < minTextLength
 	);
+}
+
+function getMinTextLength(node: any, tag: string) {
+	if (isButton(node, tag)) {
+		return DEFAULT_MIN_PARAGRAPH_CHARS;
+	}
+	return Number.isInteger(config.minParagraphChars) &&
+		config.minParagraphChars > 0
+		? config.minParagraphChars
+		: DEFAULT_MIN_PARAGRAPH_CHARS;
 }
 
 // 检查节点内容是否主要为数字

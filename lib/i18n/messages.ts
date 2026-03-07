@@ -80,6 +80,7 @@ export const localeMessages: Record<UiLanguage, Record<string, string>> = {
 		输入框翻译: "Input Translation",
 		输入框目标语言: "Input Target Language",
 		翻译并发数: "Translation Concurrency",
+		段落最少字符数: "Minimum Paragraph Characters",
 		访问令牌: "Access Token",
 		"Azure 端点": "Azure Endpoint",
 		端点地址格式不正确: "Invalid endpoint format",
@@ -106,13 +107,6 @@ export const localeMessages: Record<UiLanguage, Record<string, string>> = {
 		导出配置: "Export Config",
 		导入配置: "Import Config",
 		保存: "Save",
-		"全文规则 URL": "Full Page Rule URL",
-		保存规则地址: "Save Rule URL",
-		重置默认规则地址: "Reset Default Rule URL",
-		规则地址校验失败: "Rule URL validation failed",
-		规则地址已保存: "Rule URL saved",
-		规则地址不能为空: "Rule URL cannot be empty",
-		已恢复默认规则地址: "Default rule URL restored",
 		"确定要恢复默认的 system 和 user 模板吗？此操作将覆盖当前模板。":
 			"Reset the default system and user templates? This will overwrite the current templates.",
 		已恢复默认翻译模板: "Default translation templates restored",
@@ -120,6 +114,10 @@ export const localeMessages: Record<UiLanguage, Record<string, string>> = {
 		"快捷键已设置为: {hotkey}": "Shortcut set to: {hotkey}",
 		"并发数量必须在 1-100 之间": "Concurrency must be between 1 and 100",
 		"并发数量已更新为 {count}": "Concurrency updated to {count}",
+		"段落最少字符数必须在 {min}-{max} 之间":
+			"Minimum paragraph characters must be between {min}-{max}",
+		"段落最少字符数已更新为 {count}":
+			"Minimum paragraph characters updated to {count}",
 		没有找到配置信息: "No configuration found",
 		配置无效或格式不正确: "Invalid configuration or format",
 		配置导入成功: "Configuration imported",

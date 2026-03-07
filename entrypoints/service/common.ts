@@ -1,40 +1,41 @@
-import {method, urls} from "../utils/constant";
-import {commonMsgTemplate} from "../utils/template";
-import {config} from "@/entrypoints/utils/config";
-import {contentPostHandler} from "@/entrypoints/utils/check";
+import { contentPostHandler } from "@/entrypoints/utils/check";
+import { config } from "@/entrypoints/utils/config";
+import { method, urls } from "../utils/constant";
 import { services } from "../utils/option";
+import { commonMsgTemplate } from "../utils/template";
 
 async function common(message: any) {
-    try {
+	try {
+		const headers = new Headers({
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${config.token[config.service]}`,
+		});
 
-        const headers = new Headers({
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.token[config.service]}`
-        });
+		if (config.service === services.openrouter) {
+			headers.append("HTTP-Referer", "https://fluent.thinkstu.com");
+			headers.append("X-Title", "MTranBrowser");
+		}
 
-        if(config.service === services.openrouter){
-            headers.append('HTTP-Referer', 'https://fluent.thinkstu.com');
-            headers.append('X-Title', 'FluentRead');
-        }
-                
-        const url = config.proxy[config.service] || urls[config.service];
+		const url = config.proxy[config.service] || urls[config.service];
 
-        const resp = await fetch(url, {
-            method: method.POST,
-            headers,
-            body: commonMsgTemplate(message.origin)
-        });
+		const resp = await fetch(url, {
+			method: method.POST,
+			headers,
+			body: commonMsgTemplate(message.origin),
+		});
 
-        if (!resp.ok) {
-            throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
-        }
+		if (!resp.ok) {
+			throw new Error(
+				`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`,
+			);
+		}
 
-        const result = await resp.json();
-        return contentPostHandler(result.choices[0].message.content);
-    } catch (error) {
-        console.error('API调用失败:', error);
-        throw error;
-    }
+		const result = await resp.json();
+		return contentPostHandler(result.choices[0].message.content);
+	} catch (error) {
+		console.error("API调用失败:", error);
+		throw error;
+	}
 }
 
 export default common;

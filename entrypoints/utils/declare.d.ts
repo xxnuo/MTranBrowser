@@ -1,2 +1,2 @@
-declare module 'entrypoints/utils/declare';
-declare module 'js-beautify';
+declare module "entrypoints/utils/declare";
+declare module "js-beautify";

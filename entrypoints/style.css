@@ -1,297 +1,321 @@
 @keyframes spin {
-    0% { transform: rotate(-1deg); }
-    100% { transform: rotate(360deg); }
+	0% {
+		transform: rotate(-1deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
 }
 .fluent-read-loading {
-    border: 3px solid #f3f3f3; /* 轨迹灰色 */
-    border-top: 3px solid blue;   /* 主色调，首次翻译蓝色、缓存应改为绿色 */
-    border-radius: 50%;
-    width: 12px;
-    height: 12px;
-    animation: spin 1s linear infinite;
-    display: inline-block;
+	border: 2px solid #e5e7eb;
+	border-top: 2px solid #9ca3af;
+	border-radius: 50%;
+	width: 9px;
+	height: 9px;
+	animation: spin 1s linear infinite;
+	display: inline-block;
 }
-
-/* 静态加载样式（禁用动画时） */
 .fluent-read-loading.static {
-    animation: none;
-    background: radial-gradient(circle, rgb(230, 151, 171) 30%, rgba(230, 151, 171, 0.6) 70%);
-    border: 2px solid rgb(200, 121, 141);
-    box-shadow: 0 0 8px rgba(230, 151, 171, 0.4);
-    position: relative;
+	animation: none;
+	background: radial-gradient(
+		circle,
+		rgba(156, 163, 175, 0.85) 30%,
+		rgba(156, 163, 175, 0.45) 70%
+	);
+	border: 2px solid #9ca3af;
+	box-shadow: 0 0 6px rgba(107, 114, 128, 0.25);
+	position: relative;
 }
-
-/* 添加一个微妙的内阴影效果 */
 .fluent-read-loading.static::before {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    right: 2px;
-    bottom: 2px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(0,0,0,0.1) 100%);
-    border-radius: 50%;
-    pointer-events: none;
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	right: 2px;
+	bottom: 2px;
+	background: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.3) 0%,
+		transparent 50%,
+		rgba(0, 0, 0, 0.1) 100%
+	);
+	border-radius: 50%;
+	pointer-events: none;
 }
 
 .fluent-read-retry-wrapper {
-    display: inline-flex;
-    align-items: center;
+	display: inline-flex;
+	align-items: center;
 }
-.fluent-read-retry, .fluent-read-reason {
-    color: #428ADF;
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-    margin-left: 0.2em;
-    font-size: 1em;
-    cursor: pointer;
+.fluent-read-retry,
+.fluent-read-reason {
+	color: #428adf;
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+	margin-left: 0.2em;
+	font-size: 1em;
+	cursor: pointer;
 }
 
 /* 输入框翻译相关样式 - 柔和呼吸效果 */
 @keyframes inputBoxTranslating {
-    0% {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
-    }
-    50% {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-    }
-    100% {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
-    }
+	0% {
+		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+	}
+	50% {
+		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+	}
+	100% {
+		box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+	}
 }
 
 @keyframes inputBoxSuccess {
-    0% {
-        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
-    }
-    100% {
-        box-shadow: none;
-    }
+	0% {
+		box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.4);
+	}
+	50% {
+		box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+	}
+	100% {
+		box-shadow: none;
+	}
 }
 
 @keyframes inputBoxError {
-    0% {
-        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
-        transform: translateX(0);
-    }
-    25% {
-        transform: translateX(-1px);
-    }
-    75% {
-        transform: translateX(1px);
-    }
-    100% {
-        box-shadow: none;
-        transform: translateX(0);
-    }
+	0% {
+		box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
+		transform: translateX(0);
+	}
+	25% {
+		transform: translateX(-1px);
+	}
+	75% {
+		transform: translateX(1px);
+	}
+	100% {
+		box-shadow: none;
+		transform: translateX(0);
+	}
 }
 
 .fluent-input-translating {
-    animation: inputBoxTranslating 3s infinite ease-in-out;
-    transition: all 0.3s ease;
+	animation: inputBoxTranslating 3s infinite ease-in-out;
+	transition: all 0.3s ease;
 }
 
 .fluent-input-success {
-    animation: inputBoxSuccess 1.5s ease-out;
+	animation: inputBoxSuccess 1.5s ease-out;
 }
 
 .fluent-input-error {
-    animation: inputBoxError 0.5s ease-out;
+	animation: inputBoxError 0.5s ease-out;
 }
 
 /* 翻译提示弹窗样式 - 柔和低调设计 */
 .fluent-input-tooltip {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.75);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 400;
-    z-index: 10000;
-    pointer-events: none;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-    transform: translateY(3px);
+	position: fixed;
+	background: rgba(0, 0, 0, 0.75);
+	color: white;
+	padding: 8px 12px;
+	border-radius: 6px;
+	font-size: 12px;
+	font-weight: 400;
+	z-index: 10000;
+	pointer-events: none;
+	transition: all 0.2s ease;
+	backdrop-filter: blur(8px);
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+	transform: translateY(3px);
 }
 
 .fluent-input-tooltip.show {
-    opacity: 1;
-    transform: translateY(0);
+	opacity: 1;
+	transform: translateY(0);
 }
 
 .fluent-input-tooltip.hide {
-    opacity: 0;
-    transform: translateY(-5px);
+	opacity: 0;
+	transform: translateY(-5px);
 }
 
 .fluent-input-tooltip.translating {
-    background: rgba(59, 130, 246, 0.85);
+	background: rgba(59, 130, 246, 0.85);
 }
 
 .fluent-input-tooltip.success {
-    background: rgba(34, 197, 94, 0.85);
+	background: rgba(34, 197, 94, 0.85);
 }
 
 .fluent-input-tooltip.error {
-    background: rgba(239, 68, 68, 0.85);
+	background: rgba(239, 68, 68, 0.85);
 }
 
 /* 图标旋转动画 */
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
 }
 
 /* display 译文显示样式*/
 
 /* 弱化 */
 .fluent-display-dimmed {
-    opacity: 0.7;
+	opacity: 0.7;
 }
 
 /* 实线下划线 */
 .fluent-display-solid-underline {
-    border-bottom: 2px solid #409eff;
+	border-bottom: 2px solid #409eff;
 }
 
 /* 虚线下划线 */
 .fluent-display-dot-underline {
-    border-bottom: 2px dotted #409eff;
+	border-bottom: 2px dotted #409eff;
 }
 
 /* 学习模式 */
 .fluent-display-learning-mode {
-    background: linear-gradient(transparent 60%, #ffd700 40%);
+	background: linear-gradient(transparent 60%, #ffd700 40%);
 }
 
 /* 透明模式 */
 .fluent-display-transparent-mode {
-    opacity: 0.85;
+	opacity: 0.85;
 }
 
 /* 阴影效果 */
 .fluent-display-card-mode {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: rgba(64, 158, 255, 0.1);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+	padding: 4px 8px;
+	border-radius: 4px;
+	background: rgba(64, 158, 255, 0.1);
 }
 
 /* 马克笔 */
 .fluent-display-marker {
-    background: #ffeb3b;
-    padding: 0 4px;
+	background: #ffeb3b;
+	padding: 0 4px;
 }
 
 /* 引用 */
 .fluent-display-quote {
-    border-left: 4px solid #409eff;
-    padding-left: 8px;
-    font-style: italic;
+	border-left: 3px solid #d14b5a;
+	padding-left: 10px;
+	color: #2f343b;
+	font-style: normal;
 }
 
 /* 加粗 */
 .fluent-display-bold {
-    font-weight: bold;
+	font-weight: bold;
 }
 
 /* 双语模式，block 强制换行、inline-block 自适应换行 */
 .fluent-read-bilingual-content {
-    display: block; /* 设置为块级元素，强制换行 */
-    word-break: break-word; /* 允许在单词内断行，避免超出容器边界 */
-    margin: 8px 0 !important; /* 上下边距设置为8px，并强制覆盖其他样式 */
-    color: inherit; /* 保持文本颜色与周围文本一致 */
-    background: transparent; /* 确保背景透明，与周围背景融合 */
-    box-sizing: border-box; /* 使用 border-box 模型，确保内外边距和边框计算正确 */
-    overflow-wrap: break-word; /* 处理长单词或 URL 的断行，避免溢出 */
+	display: block; /* 设置为块级元素，强制换行 */
+	word-break: break-word; /* 允许在单词内断行，避免超出容器边界 */
+	margin: 8px 0; /* 上下边距设置为8px，并强制覆盖其他样式 */
+	color: inherit; /* 保持文本颜色与周围文本一致 */
+	background: transparent; /* 确保背景透明，与周围背景融合 */
+	box-sizing: border-box; /* 使用 border-box 模型，确保内外边距和边框计算正确 */
+	overflow-wrap: break-word; /* 处理长单词或 URL 的断行，避免溢出 */
 }
 
 .fluent-display-lightyellow {
-    background-color: rgba(255, 235, 59, 0.2);
+	background-color: rgba(255, 235, 59, 0.2);
 }
 
 .fluent-display-lightblue {
-    background-color: rgba(64, 158, 255, 0.1);
+	background-color: rgba(64, 158, 255, 0.1);
 }
 
 .fluent-display-lightgray {
-    background-color: rgba(158, 158, 158, 0.1);
+	background-color: rgba(158, 158, 158, 0.1);
 }
 
 .fluent-display-italic {
-    font-style: italic;
+	font-style: italic;
 }
 
 .fluent-display-border {
-    border: 1px solid #409eff;
-    border-radius: 4px;
-    padding: 2px 6px;
+	border: 1px solid #409eff;
+	border-radius: 4px;
+	padding: 2px 6px;
 }
 
 .fluent-display-text-shadow {
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* 新增的双语翻译样式 */
 .fluent-display-modern-card {
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
-    border-radius: 8px;
-    padding: 6px 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    margin: 4px 0;
+	background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+	border-radius: 8px;
+	padding: 6px 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+	margin: 4px 0;
 }
 
 .fluent-display-wavy {
-    text-decoration: wavy underline #409eff;
-    text-underline-offset: 4px;
+	text-decoration: wavy underline #409eff;
+	text-underline-offset: 4px;
 }
 
 .fluent-display-highlight-fade {
-    background: linear-gradient(104deg, rgba(64,158,255,0) 0.9%, rgba(64,158,255,0.1) 2.4%, rgba(64,158,255,0.15) 5.8%, rgba(64,158,255,0.1) 93%, rgba(64,158,255,0.1) 96%);
-    padding: 0.5em 0.8em;
-    border-radius: 4px;
+	background: linear-gradient(
+		104deg,
+		rgba(64, 158, 255, 0) 0.9%,
+		rgba(64, 158, 255, 0.1) 2.4%,
+		rgba(64, 158, 255, 0.15) 5.8%,
+		rgba(64, 158, 255, 0.1) 93%,
+		rgba(64, 158, 255, 0.1) 96%
+	);
+	padding: 0.5em 0.8em;
+	border-radius: 4px;
 }
 
 .fluent-display-elegant {
-    font-family: "Georgia", serif;
-    color: #666;
-    line-height: 1.6;
-    letter-spacing: 0.3px;
+	font-family: "Georgia", serif;
+	color: #666;
+	line-height: 1.6;
+	letter-spacing: 0.3px;
 }
 
 .fluent-display-focus {
-    background: linear-gradient(to right, transparent, rgba(64,158,255,0.1) 4%, rgba(64,158,255,0.1) 96%, transparent);
-    padding: 4px 12px;
-    border-radius: 3px;
+	background: linear-gradient(
+		to right,
+		transparent,
+		rgba(64, 158, 255, 0.1) 4%,
+		rgba(64, 158, 255, 0.1) 96%,
+		transparent
+	);
+	padding: 4px 12px;
+	border-radius: 3px;
 }
 
 .fluent-display-paper {
-    background-color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-    border: 1px solid #eee;
-    padding: 8px 12px;
-    border-radius: 6px;
+	background-color: #fff;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+	border: 1px solid #eee;
+	padding: 8px 12px;
+	border-radius: 6px;
 }
 
 .fluent-display-clean {
-    border-bottom: 1px solid #e4e7ed;
-    padding-bottom: 2px;
-    margin-bottom: 2px;
+	border-bottom: 1px solid #e4e7ed;
+	padding-bottom: 2px;
+	margin-bottom: 2px;
 }
 
 .fluent-display-tech {
-    font-family: "Consolas", monospace;
-    background: #f8f9fa;
-    padding: 2px 6px;
-    border-radius: 3px;
-    border: 1px solid #eee;
+	font-family: "Consolas", monospace;
+	background: #f8f9fa;
+	padding: 2px 6px;
+	border-radius: 3px;
+	border: 1px solid #eee;
 }

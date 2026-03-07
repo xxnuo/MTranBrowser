@@ -1,6 +1,11 @@
 {
-  "extends": "./.wxt/tsconfig.json",
-  "compilerOptions": {
-    "moduleResolution": "node"
-  }
+	"extends": "./.wxt/tsconfig.json",
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"jsx": "react-jsx",
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./*"]
+		}
+	}
 }

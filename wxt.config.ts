@@ -1,28 +1,28 @@
-import {defineConfig} from 'wxt';
-import vue from '@vitejs/plugin-vue';
-import {resolve} from 'path';
-import fs from 'fs';
+import fs from "node:fs";
+import { resolve } from "node:path";
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "wxt";
 
+const packageJson = JSON.parse(
+	fs.readFileSync(resolve(__dirname, "package.json"), "utf-8"),
+);
 
-const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
-
-
-// See https://wxt.dev/api/config.html
 export default defineConfig({
-    modules: ['@wxt-dev/webextension-polyfill'],
-    imports: {
-        addons: {
-            vueTemplate: true,
-        },
-    },
-    vite: () => ({
-        plugins: [vue()],
-        define: {
-            'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
-        }
-    }),
-    manifest: {
-        permissions: ['storage', 'contextMenus', 'offscreen'],
-    },
-
+	modules: ["@wxt-dev/module-react", "@wxt-dev/webextension-polyfill"],
+	webExt: {
+		startUrls: ["https://news.ycombinator.com/"],
+	},
+	vite: () => ({
+		plugins: [tailwindcss()],
+		define: {
+			"process.env.APP_VERSION": JSON.stringify(packageJson.version),
+		},
+	}),
+	manifest: {
+		permissions: ["storage", "contextMenus", "offscreen"],
+		host_permissions: ["<all_urls>"],
+		options_ui: {
+			open_in_tab: true,
+		},
+	},
 });

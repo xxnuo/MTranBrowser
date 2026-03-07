@@ -1,334 +1,454 @@
-import { checkConfig, searchClassName, skipNode } from "../utils/check";
-import { cache } from "../utils/cache";
-import { options, servicesType } from "../utils/option";
-import { insertFailedTip, insertLoadingSpinner } from "../utils/icon";
-import { styles } from "@/entrypoints/utils/constant";
-import { beautyHTML, grabNode, grabAllNode, LLMStandardHTML, smashTruncationStyle } from "@/entrypoints/main/dom";
-import { detectlang, throttle } from "@/entrypoints/utils/common";
+import { storage } from "@wxt-dev/storage";
+import { type ActiveFullPageRuleContext, collectRuleMatchedNodes, createRuleNodePayload, type RuleNodePayload } from "@/entrypoints/main/fullPageRule";
 import { getMainDomain, replaceCompatFn } from "@/entrypoints/main/compat";
+import {
+	beautyHTML,
+	grabAllNode,
+	grabNode,
+	LLMStandardHTML,
+	smashTruncationStyle,
+} from "@/entrypoints/main/dom";
+import { detectlang, throttle } from "@/entrypoints/utils/common";
 import { config } from "@/entrypoints/utils/config";
-import { translateText, cancelAllTranslations } from '@/entrypoints/utils/translateApi';
+import { styles } from "@/entrypoints/utils/constant";
+import {
+	cancelAllTranslations,
+	translateText,
+} from "@/entrypoints/utils/translateApi";
+import type { NormalizedSiteRule } from "@/entrypoints/utils/fullPageRule";
+import { cache } from "../utils/cache";
+import { checkConfig, searchClassName, skipNode } from "../utils/check";
+import { insertFailedTip, insertLoadingSpinner } from "../utils/icon";
+import { options, servicesType } from "../utils/option";
 
-let hoverTimer: any; // 鼠标悬停计时器
-let htmlSet = new Set(); // 防抖
-export let originalContents = new Map(); // 保存原始内容
-let isAutoTranslating = false; // 控制是否继续翻译新内容
-let observer: IntersectionObserver | null = null; // 保存观察器实例
-let mutationObserver: MutationObserver | null = null; // 保存 DOM 变化观察器实例
+let hoverTimer: any;
+const htmlSet = new Set<string>();
+export const originalContents = new Map<string, string>();
+let isAutoTranslating = false;
+let isPreparingAutoTranslation = false;
+let observer: IntersectionObserver | null = null;
+let mutationObserver: MutationObserver | null = null;
+let activeFullPageRuleContext: ActiveFullPageRuleContext | null = null;
 
-// 使用自定义属性标记已翻译的节点
-const TRANSLATED_ATTR = 'data-fr-translated';
-const TRANSLATED_ID_ATTR = 'data-fr-node-id'; // 添加节点ID属性
+const TRANSLATED_ATTR = "data-fr-translated";
+const TRANSLATED_ID_ATTR = "data-fr-node-id";
 
-let nodeIdCounter = 0; // 节点ID计数器
+let nodeIdCounter = 0;
 
-// 恢复原文内容
+function clearPendingHtml(nodeOuterHTML: string) {
+	htmlSet.delete(nodeOuterHTML);
+}
+
+function getActiveRule() {
+	return activeFullPageRuleContext?.rule || null;
+}
+
+async function requestFullPageRuleContext() {
+	try {
+		const response = await browser.runtime.sendMessage({
+			type: "fluentread:get-fullpage-rule",
+			url: location.href,
+			ruleUrl: config.fullPageRuleUrl,
+		});
+		if (
+			response &&
+			typeof response === "object" &&
+			(!("success" in response) || response.success !== false)
+		) {
+			return response as ActiveFullPageRuleContext;
+		}
+	} catch (error) {
+		console.error("加载全文规则失败:", error);
+	}
+	return null;
+}
+
+function collectNodesForRoot(rootNode: ParentNode, rule: NormalizedSiteRule | null) {
+	if (!rule) {
+		return grabAllNode(rootNode as Node);
+	}
+	return collectRuleMatchedNodes(rootNode, rule);
+}
+
+function logActiveRule(ruleContext: ActiveFullPageRuleContext, nodeCount: number) {
+	if (!ruleContext.rule) {
+		return;
+	}
+	console.log("[FluentRead] 命中全文规则", {
+		url: location.href,
+		sourceUrl: ruleContext.sourceUrl,
+		fetchedAt: ruleContext.fetchedAt,
+		pattern: ruleContext.rule.pattern,
+		selector: ruleContext.rule.selector,
+		rootsSelector: ruleContext.rule.rootsSelector,
+		ignoreSelector: ruleContext.rule.ignoreSelector,
+		keepSelector: ruleContext.rule.keepSelector,
+		autoScan: ruleContext.rule.autoScan,
+		nodeCount,
+	});
+}
+
+function resolveInitialTargets(ruleContext: ActiveFullPageRuleContext | null) {
+	const rule = ruleContext?.rule || null;
+	if (rule) {
+		try {
+			const nodes = collectNodesForRoot(document.body, rule);
+			if (nodes.length) {
+				logActiveRule(ruleContext as ActiveFullPageRuleContext, nodes.length);
+				return {
+					nodes,
+					ruleContext,
+				};
+			}
+			console.warn("[FluentRead] 命中全文规则，但未选中任何节点，已回退通用扫描", {
+				url: location.href,
+				pattern: rule.pattern,
+				sourceUrl: ruleContext?.sourceUrl,
+			});
+		} catch (error) {
+			console.error("规则选点失败，回退通用扫描:", error);
+		}
+	}
+	return {
+		nodes: grabAllNode(document.body),
+		ruleContext: null,
+	};
+}
+
+function collectMutationTargets(rootNode: Element) {
+	const rule = getActiveRule();
+	try {
+		return collectNodesForRoot(rootNode, rule).filter(
+			(node) => !node.hasAttribute(TRANSLATED_ATTR),
+		);
+	} catch (error) {
+		console.error("规则增量选点失败:", error);
+		if (rule) {
+			return [];
+		}
+		return grabAllNode(rootNode).filter(
+			(node) => !node.hasAttribute(TRANSLATED_ATTR),
+		);
+	}
+}
+
 export function restoreOriginalContent() {
-    // 取消所有等待中的翻译任务
-    cancelAllTranslations();
-    
-    // 1. 遍历所有已翻译的节点
-    document.querySelectorAll(`[${TRANSLATED_ATTR}="true"]`).forEach(node => {
-        const nodeId = node.getAttribute(TRANSLATED_ID_ATTR);
-        if (nodeId && originalContents.has(nodeId)) {
-            const originalContent = originalContents.get(nodeId);
-            node.innerHTML = originalContent;
-            node.removeAttribute(TRANSLATED_ATTR);
-            node.removeAttribute(TRANSLATED_ID_ATTR);
-            
-            // 移除可能添加的翻译相关类
-            node.classList.remove('fluent-read-bilingual');
-        }
-    });
-    
-    // 2. 移除所有翻译内容元素
-    document.querySelectorAll('.fluent-read-bilingual-content').forEach(element => {
-        element.remove();
-    });
-    
-    // 3. 移除所有翻译过程中添加的加载动画和错误提示
-    document.querySelectorAll('.fluent-read-loading, .fluent-read-retry-wrapper').forEach(element => {
-        element.remove();
-    });
-    
-    // 4. 清空存储的原始内容
-    originalContents.clear();
-    
-    // 5. 停止所有观察器
-    if (observer) {
-        observer.disconnect();
-        observer = null;
-    }
-    if (mutationObserver) {
-        mutationObserver.disconnect();
-        mutationObserver = null;
-    }
-    
-    // 6. 重置所有翻译相关的状态
-    isAutoTranslating = false;
-    htmlSet.clear(); // 清空防抖集合
-    nodeIdCounter = 0; // 重置节点ID计数器
-    
-    // 7. 消除可能存在的全局样式污染
-    const tempStyleElements = document.querySelectorAll('style[data-fr-temp-style]');
-    tempStyleElements.forEach(el => el.remove());
+	cancelAllTranslations();
+	for (const node of document.querySelectorAll(`[${TRANSLATED_ATTR}="true"]`)) {
+		const nodeId = node.getAttribute(TRANSLATED_ID_ATTR);
+		if (nodeId && originalContents.has(nodeId)) {
+			node.innerHTML = originalContents.get(nodeId) || "";
+			node.removeAttribute(TRANSLATED_ATTR);
+			node.removeAttribute(TRANSLATED_ID_ATTR);
+			node.classList.remove("fluent-read-bilingual");
+		}
+	}
+	for (const element of document.querySelectorAll(
+		".fluent-read-bilingual-content",
+	)) {
+		element.remove();
+	}
+	for (const element of document.querySelectorAll(
+		".fluent-read-loading, .fluent-read-retry-wrapper",
+	)) {
+		element.remove();
+	}
+	originalContents.clear();
+	if (observer) {
+		observer.disconnect();
+		observer = null;
+	}
+	if (mutationObserver) {
+		mutationObserver.disconnect();
+		mutationObserver = null;
+	}
+	isAutoTranslating = false;
+	isPreparingAutoTranslation = false;
+	activeFullPageRuleContext = null;
+	htmlSet.clear();
+	nodeIdCounter = 0;
+	for (const element of document.querySelectorAll("style[data-fr-temp-style]")) {
+		element.remove();
+	}
 }
 
-// 自动翻译整个页面的功能
-export function autoTranslateEnglishPage() {
-    // 如果已经在翻译中，则返回
-    if (isAutoTranslating) return;
-    
-    // 获取当前页面的语言（暂时注释，存在识别问题）
-    // const text = document.documentElement.innerText || '';
-    // const cleanText = text.replace(/[\s\u3000]+/g, ' ').trim().slice(0, 500);
-    // const language = detectlang(cleanText);
-    // console.log('当前页面语言：', language);
-    // const to = config.to;
-    // if (to.includes(language)) {
-    //     console.log('目标语言与当前页面语言相同，不进行翻译');
-    //     return;
-    // }
-    // console.log('当前页面非目标语言，开始翻译');
-
-    // 获取所有需要翻译的节点
-    const nodes = grabAllNode(document.body);
-    if (!nodes.length) return;
-
-    isAutoTranslating = true;
-
-    // 创建观察器
-    observer = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && isAutoTranslating) {
-                const node = entry.target as Element;
-
-                // 去重
-                if (node.hasAttribute(TRANSLATED_ATTR)) return;
-                
-                // 为节点分配唯一ID
-                const nodeId = `fr-node-${nodeIdCounter++}`;
-                node.setAttribute(TRANSLATED_ID_ATTR, nodeId);
-                
-                // 保存原始内容
-                originalContents.set(nodeId, node.innerHTML);
-                
-                // 标记为已翻译
-                node.setAttribute(TRANSLATED_ATTR, 'true');
-
-                if (config.display === styles.bilingualTranslation) {
-                    handleBilingualTranslation(node, false);
-                } else {
-                    handleSingleTranslation(node, false);
-                }
-
-                // 停止观察该节点
-                observer.unobserve(node);
-            }
-        });
-    }, {
-        root: null,
-        rootMargin: '50px',
-        threshold: 0.1 // 只要出现10%就开始翻译
-    });
-
-    // 开始观察所有节点
-    nodes.forEach(node => {
-        observer?.observe(node);
-    });
-
-    // 创建 MutationObserver 监听 DOM 变化
-    mutationObserver = new MutationObserver((mutations) => {
-        if (!isAutoTranslating) return;
-        
-        mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) { // 元素节点
-                    // 只处理未翻译的新节点
-                    const newNodes = grabAllNode(node as Element).filter(
-                        n => !n.hasAttribute(TRANSLATED_ATTR)
-                    );
-                    newNodes.forEach(n => observer?.observe(n));
-                }
-            });
-        });
-    });
-
-    // 监听整个 body 的变化
-    mutationObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+export async function autoTranslateEnglishPage() {
+	if (isAutoTranslating || isPreparingAutoTranslation) {
+		return;
+	}
+	isPreparingAutoTranslation = true;
+	try {
+		const requestedRuleContext = await requestFullPageRuleContext();
+		const { nodes, ruleContext } = resolveInitialTargets(requestedRuleContext);
+		if (!nodes.length) {
+			return;
+		}
+		activeFullPageRuleContext = ruleContext;
+		isAutoTranslating = true;
+		observer = new IntersectionObserver(
+			(entries, currentObserver) => {
+				for (const entry of entries) {
+					if (!entry.isIntersecting || !isAutoTranslating) {
+						continue;
+					}
+					const node = entry.target as Element;
+					if (node.hasAttribute(TRANSLATED_ATTR)) {
+						continue;
+					}
+					const nodeId = `fr-node-${nodeIdCounter++}`;
+					node.setAttribute(TRANSLATED_ID_ATTR, nodeId);
+					originalContents.set(nodeId, node.innerHTML);
+					node.setAttribute(TRANSLATED_ATTR, "true");
+					if (config.display === styles.bilingualTranslation) {
+						handleBilingualTranslation(node, false, getActiveRule());
+					} else {
+						handleSingleTranslation(node, false, getActiveRule());
+					}
+					currentObserver.unobserve(node);
+				}
+			},
+			{
+				root: null,
+				rootMargin: "50px",
+				threshold: 0.1,
+			},
+		);
+		for (const node of nodes) {
+			observer.observe(node);
+		}
+		mutationObserver = new MutationObserver((mutations) => {
+			if (!isAutoTranslating) {
+				return;
+			}
+			for (const mutation of mutations) {
+				for (const addedNode of mutation.addedNodes) {
+					if (addedNode.nodeType !== 1) {
+						continue;
+					}
+					for (const node of collectMutationTargets(addedNode as Element)) {
+						observer?.observe(node);
+					}
+				}
+			}
+		});
+		mutationObserver.observe(document.body, {
+			childList: true,
+			subtree: true,
+		});
+	} finally {
+		isPreparingAutoTranslation = false;
+	}
 }
 
-// 处理鼠标悬停翻译的主函数
-export function handleTranslation(mouseX: number, mouseY: number, delayTime: number = 0) {
-    // 检查配置
-    if (!checkConfig()) return;
-
-    clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => {
-
-        let node = grabNode(document.elementFromPoint(mouseX, mouseY));
-
-        // 判断是否跳过节点
-        if (skipNode(node)) return;
-
-        // 防抖
-        let nodeOuterHTML = node.outerHTML;
-        if (htmlSet.has(nodeOuterHTML)) return;
-        htmlSet.add(nodeOuterHTML);
-
-        // 根据翻译模式进行翻译
-        if (config.display === styles.bilingualTranslation) {
-            handleBilingualTranslation(node, delayTime > 0);  // 根据 delayTime 可判断是否为滑动翻译
-        } else {
-            handleSingleTranslation(node, delayTime > 0);
-        }
-    }, delayTime);
+export function handleTranslation(
+	mouseX: number,
+	mouseY: number,
+	delayTime: number = 0,
+) {
+	if (!checkConfig()) {
+		return;
+	}
+	clearTimeout(hoverTimer);
+	hoverTimer = setTimeout(() => {
+		const node = grabNode(document.elementFromPoint(mouseX, mouseY));
+		if (skipNode(node)) {
+			return;
+		}
+		const nodeOuterHTML = node.outerHTML;
+		if (htmlSet.has(nodeOuterHTML)) {
+			return;
+		}
+		htmlSet.add(nodeOuterHTML);
+		if (config.display === styles.bilingualTranslation) {
+			handleBilingualTranslation(node, delayTime > 0, null);
+		} else {
+			handleSingleTranslation(node, delayTime > 0, null);
+		}
+	}, delayTime);
 }
 
-// 双语翻译
-export function handleBilingualTranslation(node: any, slide: boolean) {
-    let nodeOuterHTML = node.outerHTML;
-    // 如果已经翻译过，250ms 后删除翻译结果
-    let bilingualNode = searchClassName(node, 'fluent-read-bilingual');
-    if (bilingualNode) {
-        if (slide) {
-            htmlSet.delete(nodeOuterHTML);
-            return;
-        }
-        let spinner = insertLoadingSpinner(bilingualNode as HTMLElement, true);
-        setTimeout(() => {
-            spinner.remove();
-            const content = searchClassName(bilingualNode as HTMLElement, 'fluent-read-bilingual-content');
-            if (content && content instanceof HTMLElement) content.remove();
-            (bilingualNode as HTMLElement).classList.remove('fluent-read-bilingual');
-            htmlSet.delete(nodeOuterHTML);
-        }, 250);
-        return;
-    }
-
-    // 检查是否有缓存
-    let cached = cache.localGet(node.textContent);
-    if (cached) {
-        let spinner = insertLoadingSpinner(node, true);
-        setTimeout(() => {
-            spinner.remove();
-            htmlSet.delete(nodeOuterHTML);
-            bilingualAppendChild(node, cached);
-        }, 250);
-        return;
-    }
-
-    // 翻译
-    bilingualTranslate(node, nodeOuterHTML);
+export function handleBilingualTranslation(
+	node: Element,
+	slide: boolean,
+	rule: NormalizedSiteRule | null = null,
+) {
+	const nodeOuterHTML = node.outerHTML;
+	const bilingualNode = searchClassName(node, "fluent-read-bilingual");
+	if (bilingualNode) {
+		if (slide) {
+			clearPendingHtml(nodeOuterHTML);
+			return;
+		}
+		const spinner = insertLoadingSpinner(bilingualNode as HTMLElement, true);
+		setTimeout(() => {
+			spinner.remove();
+			const content = searchClassName(
+				bilingualNode as HTMLElement,
+				"fluent-read-bilingual-content",
+			);
+			if (content && content instanceof HTMLElement) {
+				content.remove();
+			}
+			(bilingualNode as HTMLElement).classList.remove("fluent-read-bilingual");
+			clearPendingHtml(nodeOuterHTML);
+		}, 250);
+		return;
+	}
+	const payload = rule ? createRuleNodePayload(node, rule) : null;
+	const cacheKey = payload?.bilingualSource || node.textContent || "";
+	if (cacheKey) {
+		const cached = cache.localGet(cacheKey);
+		if (cached) {
+			const spinner = insertLoadingSpinner(node as HTMLElement, true);
+			setTimeout(() => {
+				spinner.remove();
+				clearPendingHtml(nodeOuterHTML);
+				bilingualAppendChild(node as HTMLElement, cached);
+			}, 250);
+			return;
+		}
+	}
+	bilingualTranslate(node, nodeOuterHTML, rule, payload);
 }
 
-// 单语翻译
-export function handleSingleTranslation(node: any, slide: boolean) {
-    let nodeOuterHTML = node.outerHTML;
-    let outerHTMLCache = cache.localGet(node.outerHTML);
-
-
-    if (outerHTMLCache) {
-        // handleTranslation 已处理防抖 故删除判断 原bug 在保存完成后 刷新页面 可以取得缓存 直接return并没有翻译
-        let spinner = insertLoadingSpinner(node, true);
-        setTimeout(() => {
-            spinner.remove();
-            htmlSet.delete(nodeOuterHTML);
-
-            // 兼容部分网站独特的 DOM 结构
-            let fn = replaceCompatFn[getMainDomain(document.location.hostname)];
-            if (fn) fn(node, outerHTMLCache);
-            else node.outerHTML = outerHTMLCache;
-
-        }, 250);
-        return;
-    }
-
-    singleTranslate(node);
+export function handleSingleTranslation(
+	node: Element,
+	_slide: boolean,
+	rule: NormalizedSiteRule | null = null,
+) {
+	const nodeOuterHTML = node.outerHTML;
+	const outerHTMLCache = cache.localGet(node.outerHTML);
+	if (outerHTMLCache) {
+		const spinner = insertLoadingSpinner(node as HTMLElement, true);
+		setTimeout(() => {
+			spinner.remove();
+			clearPendingHtml(nodeOuterHTML);
+			const fn = replaceCompatFn[getMainDomain(document.location.hostname)];
+			if (fn) {
+				fn(node, outerHTMLCache);
+			} else {
+				node.outerHTML = outerHTMLCache;
+			}
+		}, 250);
+		return;
+	}
+	singleTranslate(node, rule);
 }
 
-
-function bilingualTranslate(node: any, nodeOuterHTML: any) {
-    if (detectlang(node.textContent.replace(/[\s\u3000]/g, '')) === config.to) return;
-
-    let origin = node.textContent;
-    let spinner = insertLoadingSpinner(node);
-    
-    // 使用队列管理的翻译API
-    translateText(origin, document.title)
-        .then((text: string) => {
-            spinner.remove();
-            htmlSet.delete(nodeOuterHTML);
-            bilingualAppendChild(node, text);
-        })
-        .catch((error: Error) => {
-            spinner.remove();
-            insertFailedTip(node, error.toString() || "翻译失败", spinner);
-        });
+function bilingualTranslate(
+	node: Element,
+	nodeOuterHTML: string,
+	rule: NormalizedSiteRule | null,
+	payload: RuleNodePayload | null,
+) {
+	const origin = payload?.bilingualSource || node.textContent || "";
+	if (!origin) {
+		clearPendingHtml(nodeOuterHTML);
+		return;
+	}
+	if (detectlang(origin.replace(/[\s\u3000]/g, "")) === config.to) {
+		clearPendingHtml(nodeOuterHTML);
+		return;
+	}
+	const spinner = insertLoadingSpinner(node as HTMLElement);
+	translateText(origin, document.title)
+		.then((text: string) => {
+			spinner.remove();
+			clearPendingHtml(nodeOuterHTML);
+			if (!text || text === origin) {
+				return;
+			}
+			bilingualAppendChild(node as HTMLElement, text);
+		})
+		.catch((error: Error) => {
+			spinner.remove();
+			clearPendingHtml(nodeOuterHTML);
+			insertFailedTip(node as HTMLElement, error.toString() || "翻译失败", spinner);
+		});
 }
 
-
-export function singleTranslate(node: any) {
-    if (detectlang(node.textContent.replace(/[\s\u3000]/g, '')) === config.to) return;
-
-    let origin = servicesType.isMachine(config.service) ? node.innerHTML : LLMStandardHTML(node);
-    let spinner = insertLoadingSpinner(node);
-    
-    // 使用队列管理的翻译API
-    translateText(origin, document.title)
-        .then((text: string) => {
-            spinner.remove();
-            
-            text = beautyHTML(text);
-            
-            if (!text || origin === text) return;
-            
-            let oldOuterHtml = node.outerHTML;
-            node.innerHTML = text;
-            let newOuterHtml = node.outerHTML;
-            
-            // 缓存翻译结果
-            cache.localSetDual(oldOuterHtml, newOuterHtml);
-            cache.set(htmlSet, newOuterHtml, 250);
-            htmlSet.delete(oldOuterHtml);
-        })
-        .catch((error: Error) => {
-            spinner.remove();
-            insertFailedTip(node, error.toString() || "翻译失败", spinner);
-        });
+export function singleTranslate(
+	node: Element,
+	rule: NormalizedSiteRule | null = null,
+) {
+	const payload = rule ? createRuleNodePayload(node, rule) : null;
+	const plainText = payload?.bilingualSource || node.textContent || "";
+	if (!plainText) {
+		clearPendingHtml(node.outerHTML);
+		return;
+	}
+	if (detectlang(plainText.replace(/[\s\u3000]/g, "")) === config.to) {
+		clearPendingHtml(node.outerHTML);
+		return;
+	}
+	const origin = payload
+		? servicesType.isMachine(config.service)
+			? payload.machineSource
+			: payload.aiSource
+		: servicesType.isMachine(config.service)
+			? node.innerHTML
+			: LLMStandardHTML(node);
+	if (!origin) {
+		clearPendingHtml(node.outerHTML);
+		return;
+	}
+	const oldOuterHtml = node.outerHTML;
+	const spinner = insertLoadingSpinner(node as HTMLElement);
+	translateText(origin, document.title)
+		.then((text: string) => {
+			spinner.remove();
+			clearPendingHtml(oldOuterHtml);
+			text = beautyHTML(text);
+			if (payload) {
+				const restoredHtml = payload.restoreHtml(text);
+				if (!restoredHtml) {
+					return;
+				}
+				text = restoredHtml;
+			}
+			if (!text || node.innerHTML === text) {
+				return;
+			}
+			node.innerHTML = text;
+			const newOuterHtml = node.outerHTML;
+			cache.localSetDual(oldOuterHtml, newOuterHtml);
+			cache.set(htmlSet, newOuterHtml, 250);
+		})
+		.catch((error: Error) => {
+			spinner.remove();
+			clearPendingHtml(oldOuterHtml);
+			insertFailedTip(node as HTMLElement, error.toString() || "翻译失败", spinner);
+		});
 }
 
 export const handleBtnTranslation = throttle((node: any) => {
-    let origin = node.innerText;
-    let rs = cache.localGet(origin);
-    if (rs) {
-        node.innerText = rs;
-        return;
-    }
+	const origin = node.innerText;
+	const rs = cache.localGet(origin);
+	if (rs) {
+		node.innerText = rs;
+		return;
+	}
+	config.count++ && storage.setItem("local:config", JSON.stringify(config));
+	browser.runtime
+		.sendMessage({ context: document.title, origin })
+		.then((text: string) => {
+			cache.localSetDual(origin, text);
+			node.innerText = text;
+		})
+		.catch((error: any) => console.error("调用失败:", error));
+}, 250);
 
-    config.count++ && storage.setItem('local:config', JSON.stringify(config));
-
-    browser.runtime.sendMessage({ context: document.title, origin: origin })
-        .then((text: string) => {
-            cache.localSetDual(origin, text);
-            node.innerText = text;
-        }).catch((error: any) => console.error('调用失败:', error))
-}, 250)
-
-
-function bilingualAppendChild(node: any, text: string) {
-    node.classList.add("fluent-read-bilingual");
-    let newNode = document.createElement("span");
-    newNode.classList.add("fluent-read-bilingual-content");
-    // find the style
-    const style = options.styles.find(s => s.value === config.style && !s.disabled);
-    if (style?.class) {
-        newNode.classList.add(style.class);
-    }
-    newNode.append(text);
-    smashTruncationStyle(node);
-    node.appendChild(newNode);
+function bilingualAppendChild(node: HTMLElement, text: string) {
+	node.classList.add("fluent-read-bilingual");
+	const newNode = document.createElement("span");
+	newNode.classList.add("fluent-read-bilingual-content");
+	const style = options.styles.find(
+		(item) => item.value === config.style && !item.disabled,
+	);
+	if (style?.class) {
+		newNode.classList.add(style.class);
+	}
+	newNode.append(text);
+	smashTruncationStyle(node);
+	node.appendChild(newNode);
 }
